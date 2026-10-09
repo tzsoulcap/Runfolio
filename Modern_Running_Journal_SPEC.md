@@ -4,7 +4,7 @@
 
 เอกสารนี้เป็นข้อกำหนดสำหรับ Codex ตั้งแต่ UX และ Visual Design ไปจนถึง Data Model, Business Rules, Acceptance Criteria และลำดับพัฒนา เวอร์ชันแรกต้องใช้งานและบันทึกข้อมูลจริงได้ ชื่อผลิตภัณฑ์ที่แสดงใน UI ใช้ “Running Journal” เป็นชื่อชั่วคราว
 
-เวอร์ชัน 1.0 วันที่ 9 ตุลาคม 2026
+เวอร์ชัน 1.1 วันที่ 9 ตุลาคม 2026 (ปรับหลัง grill-with-docs)
 
 ## 1 เป้าหมายและขอบเขตผลิตภัณฑ์
 
@@ -14,17 +14,17 @@
 
 ### ขอบเขตเวอร์ชันแรก
 
-- สมัครและเข้าสู่ระบบด้วยอีเมลและรหัสผ่าน มีข้อมูลแยกตามผู้ใช้
+- สมัครและเข้าสู่ระบบด้วย Google (Supabase Auth) ไม่มีอีเมลรหัสผ่านในเวอร์ชันแรก มีข้อมูลแยกตามผู้ใช้
 - Home, Weekly Planner, Journal, Goals, Progress และ Settings
 - สร้างแผนรายสัปดาห์และเพิ่มหลายเซสชันในวันเดียว เช่น Easy Run ตอนเช้าและ Strength ตอนเย็น
 - เพิ่ม แก้ไข ย้ายวัน จัดลำดับ ทำสำเนา ข้าม และลบรายการซ้อมที่ยังไม่มีผลจริง
 - ตั้งวันพักอย่างชัดเจน แยกจากวันที่ยังไม่ได้วางแผน
 - คัดลอกสัปดาห์ก่อนหน้า และบันทึกสัปดาห์เป็นเทมเพลตส่วนตัว
-- บันทึก Running และ Strength ทั้งจากแผนและนอกแผน
+- บันทึก Running (รวม splits รายรอบแบบ optional) และ Strength ทั้งจากแผนและนอกแผน
 - เป้าหมายระยะทางและงานแข่งหลายรายการ เลือกเป้าหมายหลักได้หนึ่งรายการ
 - สถิติจากข้อมูลจริงและการเปรียบเทียบแผนกับผลจริง
 - Export ข้อมูลส่วนตัวเป็น JSON ที่มี schemaVersion
-- Seed Master Data ตามรายการในเอกสาร พร้อมข้อมูลสาธิตที่เปิดใช้แยกจากบัญชีจริง
+- Seed Master Data ตามรายการในเอกสาร พร้อมบัญชีสาธิตที่เข้าใช้แยกจากบัญชีจริงด้วยปุ่ม one-click บนหน้า login
 
 ### ขอบเขตหลังเวอร์ชันแรก
 
@@ -146,7 +146,7 @@ Garmin/Strava integration, GPS tracking, แผนซ้อมที่สร้
 - สัปดาห์เริ่มวันจันทร์ถึงอาทิตย์
 - Header มีช่วงวันที่ ปุ่มสัปดาห์ก่อนและถัดไป และ “กลับสัปดาห์นี้”
 - Week summary แสดงระยะที่วางแผน จำนวน Running sessions และ Strength sessions
-- ปุ่มหลัก “เพิ่มการซ้อม” และเมนู “คัดลอกสัปดาห์” / “บันทึกเป็นเทมเพลต”
+- ปุ่มหลัก “เพิ่มการซ้อม” และเมนู “...” ที่มี “คัดลอกสัปดาห์” / “บันทึกเป็นเทมเพลต” / “เทมเพลตของฉัน”
 - Master library มี Running workout types และท่า Strength แบ่งกลุ่ม
 - วันหนึ่งมีหลาย PlanItem ได้ และจัดลำดับภายในวันได้
 
@@ -162,7 +162,7 @@ Garmin/Strava integration, GPS tracking, แผนซ้อมที่สร้
 
 ### การเพิ่ม Running
 
-1. เลือกวันและประเภทซ้อม
+1. เลือกวันและประเภทซ้อม (RACE_DAY ต้องเลือก Goal จาก dropdown แล้วดึงระยะจาก Goal นั้น ไม่พิมพ์ระยะเอง)
 2. โหลด Default เป็น Draft ที่ผู้ใช้แก้ได้
 3. เลือกเป้าหมายหลัก ระยะทาง เวลา หรือ Structured workout
 4. เพิ่มเวลาโดยประมาณ หมายเหตุ และ Intensity ถ้าต้องการ
@@ -197,7 +197,7 @@ Garmin/Strava integration, GPS tracking, แผนซ้อมที่สร้
 - Merge กับวันพักต้องแสดง Conflict ให้เลือกว่าจะคงวันพักหรือเปลี่ยนเป็นวันซ้อม
 - Replace ที่มีเซสชันผูกผลจริงต้องแจ้ง Conflict และไม่เปลี่ยนข้อมูลบางส่วน
 - หนึ่ง Operation ต้องสำเร็จทั้งหมดหรือ Rollback ทั้งหมด
-- เป้าหมายงานแข่งของสัปดาห์ปลายทางไม่ถูกเปลี่ยนตามต้นทางอัตโนมัติ
+- จัดการเทมเพลต (ดูรายการ ใช้ เปลี่ยนชื่อ ลบ) ใน Template sheet จากเมนู Planner ไม่จำกัดจำนวนในเวอร์ชันแรก
 - Template เป็นสำเนาอิสระ การแก้สัปดาห์ต้นทางไม่เปลี่ยน Template หรือสัปดาห์อื่น
 
 ### วันพักและสถานะ
@@ -233,7 +233,11 @@ Optional: เวลาเริ่ม เวลารวมทั้งหมด
 - Pace คำนวณจาก Moving time และระยะทาง ไม่บังคับกรอกเพิ่ม
 - Elapsed time ถ้ากรอก ต้องไม่น้อยกว่า Moving time
 - บันทึก Recovery แบบ Run Walk ได้ในประเภท RECOVERY_RUN
-- บันทึกย้อนหลังและบันทึกนอกแผนได้
+- บันทึกย้อนหลัง (ไม่จำกัด) และบันทึกนอกแผนได้ แต่ห้ามวันที่ซ้อมเป็นอนาคต
+- Splits รายรอบเป็น optional ใน Running log ทุกประเภท: split ละระยะทางหรือเวลาอย่างน้อยหนึ่งอย่าง เรียงตามลำดับ
+- Splits เป็น freeform ไม่ผูกกับ planned steps (แพลน 5 รอบ ได้จริง 6 ก็เก็บ 6) แสดง planned reference ข้าง ๆ
+- Totals ที่ผู้ใช้กรอกเป็น source of truth ของสถิติเสมอ ยอดรวม splits แสดงเป็น reference เท่านั้น
+- เวอร์ชันแรกไม่เก็บ rest splits (เก็บเฉพาะ work reps)
 - Plan targets แสดงเป็น Reference เท่านั้น ช่องผลจริงต้องชัดว่าเป็น “ทำจริง”
 - ปุ่ม “ใช้ค่าเป้าหมายเป็นผลจริง” ทำได้เมื่อผู้ใช้กดเองและตรวจค่าก่อน Save
 - ไม่บันทึกผลจริงจาก Plan อัตโนมัติเมื่อกดเปิด Form หรือกด Completed
@@ -256,7 +260,7 @@ Optional: เวลาเริ่ม เวลารวมทั้งหมด
 
 หนึ่ง PlanItem ผูก Active WorkoutLog ได้สูงสุดหนึ่งรายการ แต่วันเดียวมีหลาย PlanItem หรือหลาย Log นอกแผนได้ ผลย่อยของ Interval หรือเวทอยู่ภายใน Log เดียว
 
-ถ้าซ้อมจริงคนละวันกับแผน ให้คงวันแผนเดิมและเก็บวันที่จริงแยก เช่น “แผนวันจันทร์ ทำจริงวันอังคาร” การทำสำเร็จนับกับสัปดาห์แผนเดิม ระยะสะสมนับกับวันที่ทำจริง
+ถ้าซ้อมจริงคนละวันกับแผน ให้คงวันแผนเดิมและเก็บวันที่จริงแยก เช่น “แผนวันจันทร์ ทำจริงวันอังคาร” การทำสำเร็จนับกับสัปดาห์แผนเดิม ระยะสะสมนับกับวันที่ทำจริง (ดู ADR-0002)
 
 ## 7 ข้อกำหนด Journal
 
@@ -267,6 +271,8 @@ Optional: เวลาเริ่ม เวลารวมทั้งหมด
 Filters: ช่วงวันที่ Running หรือ Strength, ประเภทวิ่ง และผล Completed หรือ Partial ค้นหาจากชื่อและหมายเหตุ มี Pagination หรือ Load more ไม่โหลดประวัติทั้งหมดเข้าฝั่ง Client
 
 เปิดรายละเอียดแล้วดู แก้ไข และลบผลจริงได้ ลบต้องถามใน UI เพราะมีผลต่อประวัติและสถิติ ลบ Log ที่ผูกแผนแล้วทำให้แผนกลับเป็น Planned หรือ Missed ตามวัน โดยไม่ลบ PlanItem
+
+รายละเอียด Running log แสดง splits รายรอบ (ถ้ามี) พร้อมยอดรวม splits เทียบ totals
 
 Empty state แสดง “ยังไม่มีบันทึก” และปุ่มสร้างบันทึก ไม่มีตัวเลขสาธิตปะปนในบัญชีจริง
 
@@ -290,6 +296,8 @@ Empty state แสดง “ยังไม่มีบันทึก” แล
 เป้าหมายแบบ Finish ไม่ต้องแสดง Pace เป้าหมาย งานแข่งที่ไม่มีวันที่ไม่แสดง Countdown วันที่งานผ่านแล้วแสดง “ผ่านมาแล้ว” และไม่เปลี่ยนเป็น Achieved เอง
 
 เมื่อ Archive หรือ Mark achieved เป้าหมายหลัก ให้คืน isPrimary เป็น false ใน Transaction เดียวกัน ผู้ใช้เลือกเป้าหมายหลักใหม่เอง หากลบ Result log ให้ล้างการเชื่อมผล แต่คง Status ของ Goal ที่ผู้ใช้กำหนดไว้
+
+หนึ่ง Goal ผูก Result log ได้หนึ่งรายการ งานแข่งซ้อม (tune-up) บันทึกเป็น RACE_DAY logs ธรรมดาที่ไม่ผูก Goal
 
 Target pace = targetTimeSec / (distanceM / 1000) เป็นค่าเป้าหมายของผู้ใช้ ไม่มีข้อความรับรองว่าพร้อมทำเวลาได้ ไม่ตีความความก้าวหน้าจากระยะสะสมเป็นเปอร์เซ็นต์ความพร้อมแข่งขัน
 
@@ -331,7 +339,7 @@ Default ทุกชุดเป็นตัวอย่างเริ่มต
 | FARTLEK | วิ่งเล่นความเร็ว / Fartlek | RUNNING | QUALITY_SPEED | Z2–Z4 | 10 รอบ เร็ว 60 วินาที + ช้า 120 วินาที รวม 30 นาที |
 | HILL_REPEAT | วิ่งขึ้นเนิน / Hill Repeats | RUNNING | POWER_FORM | Z4–Z5 | 6 × 150 m ช่วงกลับลงเป็น Open recovery |
 | STRIDES | เร่งลอยตัวสั้น / Strides | RUNNING | NEUROMUSCULAR | ใช้ Effort label ไม่มี HR Zone บังคับ | 4 × 80 m ช่วงพักเป็น Open recovery |
-| RACE_DAY | วันแข่งขัน / Race Day | RUNNING | COMPETITION | Pace จากเป้าหมายเมื่อผู้ใช้เลือก | ระยะจาก Goal ที่เลือก ไม่มีค่า 21K ตายตัว |
+| RACE_DAY | วันแข่งขัน / Race Day | RUNNING | COMPETITION | Pace จากเป้าหมายเมื่อผู้ใช้เลือก | เลือก Goal จาก dropdown ตอนสร้างแผนแล้วดึงระยะจาก Goal นั้น ไม่มีค่า 21K ตายตัว |
 
 Guidance จาก Master ไม่ใช่ BPM เป้าหมายส่วนบุคคล เวอร์ชันแรกไม่คำนวณ Zone จากอายุ Strides ไม่แปลงคำว่า Max Effort เป็น HR Zone 5 และ Race pace ไม่ถือว่าเป็น Zone
 
@@ -389,6 +397,7 @@ flowchart TD
   M["RunningWorkoutMaster"] --> P
   P -. "0 หรือ 1 ผลจริง" .-> L["WorkoutLog"]
   U --> L
+  L --> S["ActualRunningSplit"]
 ```
 
 ### ความสัมพันธ์ Strength
@@ -409,21 +418,22 @@ WeeklyPlan → DailyPlan → PlanItem เป็นความสัมพัน
 
 | Entity | Field หลัก | กฎ |
 | --- | --- | --- |
-| User และ Auth tables | ตาม Schema ของ Auth library | ใช้ Session และ Password hashing ของ Library |
+| User และ Auth tables | Supabase Auth (auth.users) จัดการเอง | userId ของ Domain tables เป็น UUID ของ Supabase user; login ด้วย Google-only ไม่มี password ในเวอร์ชันแรก |
 | UserProfile | userId, displayName, timezone, locale | timezone เริ่ม Asia/Bangkok locale เริ่ม th-TH |
 | RaceGoal | id, userId, distanceCode, distanceM, goalType, eventName, eventDate, targetTimeSec, isPrimary, status, resultWorkoutLogId | Target time ต้องเป็นบวก หนึ่ง Active primary ต่อผู้ใช้ |
 | RunningWorkoutMaster | code, nameTh, nameEn, activityType, purpose, zoneMin, zoneMax, guidance, defaultTarget, seedVersion, isActive, sortOrder | Code เป็น Primary key ห้ามเปลี่ยนตามชื่อ |
 | StrengthExerciseMaster | code, nameTh, nameEn, muscleGroup, isUnilateral, defaultPrescription, repLabel, guidance, seedVersion, isActive, sortOrder | defaultPrescription ผ่าน Schema validation |
-| WeeklyPlan | id, userId, weekStartDate, goalId, title, note, revision | Unique userId กับ weekStartDate ต้องเป็นวันจันทร์ |
+| WeeklyPlan | id, userId, weekStartDate, title, note, revision | Unique userId กับ weekStartDate ต้องเป็นวันจันทร์ |
 | DailyPlan | id, weeklyPlanId, date, isRestDay, note | สร้างครบ 7 วัน Unique weeklyPlanId กับ date |
 | PlanItem | id, dailyPlanId, activityType, runningWorkoutCode, title, plannedStartTime, runningTarget, intensityTarget, note, sortOrder, planState, skipReason, masterSnapshot, deletedAt | RUNNING หรือ STRENGTH เท่านั้นใน MVP |
 | PlannedStrengthExercise | id, planItemId, exerciseCode, variant, prescription, sortOrder, masterSnapshot | อนุญาตท่าเดิมซ้ำในเซสชันเพื่อรองรับ Circuit |
 | WorkoutLog | id, userId, clientMutationId, planItemId, activityType, runningWorkoutCode, performedDate, startedAt, outcome, distanceM, movingDurationSec, elapsedDurationSec, sessionDurationSec, avgHeartRate, rpe, feeling, note, plannedSnapshot, masterSnapshot, deletedAt | ผูกแผนได้หรือเป็นนอกแผน หนึ่ง Active log ต่อ PlanItem |
 | ActualStrengthExercise | id, workoutLogId, plannedExerciseId, exerciseCode, variant, countMode, sortOrder, masterSnapshot | ท่าที่เพิ่มนอกแผนมี plannedExerciseId เป็น null |
 | ActualStrengthSet | id, actualExerciseId, setIndex, side, measurement, reps, durationSec, loadKg, note | Unique actualExerciseId กับ setIndex กับ side |
+| ActualRunningSplit | id, workoutLogId, splitIndex, distanceM, durationSec | หนึ่ง split มีระยะหรือเวลาอย่างน้อยหนึ่งอย่าง เรียงตาม splitIndex ไม่ override totals ของ Log |
 | PlanTemplate | id, userId, name, description, schemaVersion, payload | Payload เป็นต้นไม้ของวัน 0–6 และรายการ ไม่มี ID ผลจริง |
 
-ตาราง Domain ใช้ UUID ส่วน userId ใช้ชนิดเดียวกับ Auth schema เช่น text ไม่สมมติว่า Auth library สร้าง UUID ทุกแบบ ตารางที่เปลี่ยนได้มี createdAt และ updatedAt เป็น timestamptz
+ตาราง Domain ใช้ UUID ส่วน userId เป็น UUID ของ Supabase user ตารางที่เปลี่ยนได้มี createdAt และ updatedAt เป็น timestamptz
 
 PlanState เก็บเพียง SCHEDULED หรือ SKIPPED ส่วน Completed, Partial และ Missed คำนวณจากผลจริงและวัน ห้ามเก็บสถานะเดียวกันหลายตารางแล้วต้องคอย Sync
 
@@ -437,8 +447,10 @@ PlanState เก็บเพียง SCHEDULED หรือ SKIPPED ส่ว�
 - Index PlanItem(dailyPlanId, sortOrder) และ PlannedStrengthExercise(planItemId, sortOrder)
 - Index WorkoutLog(userId, performedDate DESC) และ WorkoutLog(userId, activityType, performedDate)
 - Unique ActualStrengthSet(actualExerciseId, setIndex, side)
+- หนึ่ง ActualRunningSplit มี distanceM หรือ durationSec อย่างน้อยหนึ่งอย่าง และ Unique workoutLogId กับ splitIndex
 - Foreign key ของ Master ใช้ Restrict และปิด isActive แทนลบ Master ที่มีประวัติ
 - ไม่ Cascade การลบแผนไปลบผลจริง
+- Soft delete ของ WorkoutLog ครอบคลุม splits (splits ของ Log ที่ลบแล้วไม่นับสถิติ)
 - วันที่ DailyPlan ต้องอยู่ในสัปดาห์ของ Parent และวันพักห้ามมี Active PlanItem
 - Log, Goal, Plan และ Exercise ที่เชื่อมกันต้องเป็นของผู้ใช้เดียวกัน ตรวจฝั่ง Server ภายใน Transaction
 - ใช้ Decimal/Numeric สำหรับ distanceM และ loadKg เวลาเก็บเป็น Integer วินาที
@@ -567,6 +579,12 @@ export type ActualStrengthSetInput = ActualSetValue & {
   note?: string;
 };
 
+export interface ActualRunningSplitInput {
+  splitIndex: number;
+  distanceM?: number; // อย่างน้อยหนึ่งอย่างกับ durationSec
+  durationSec?: number;
+}
+
 export interface DailyPlanDTO {
   id: string;
   date: string; // YYYY-MM-DD ใช้ Date-only ไม่ใช่ UTC timestamp
@@ -617,6 +635,10 @@ export type PlanItemDTO = PlanItemBase & (
 - includeFinalRecovery เป็น false ได้เฉพาะเมื่อ Step สุดท้ายเป็น RECOVERY
 - ค่า Estimated distance ของ Structured workout เป็นระยะรวมโดยประมาณ ไม่ใช่ค่าที่เอาไปบวกกับ Step อีกครั้ง
 - Form ส่ง Decimal และ Date-only ที่ Normalize แล้ว Server ตรวจซ้ำทุกครั้ง
+- วันที่ซ้อม (performedDate) ห้ามเป็นอนาคต Server ตรวจซ้ำทุกครั้ง
+- หนึ่ง split มี distanceM หรือ durationSec อย่างน้อยหนึ่งอย่าง ค่าที่มีต้องมากกว่า 0
+- splitIndex เรียงลำดับไม่ซ้ำภายใน Log เดียว
+- Totals ของ Log มาจากช่องที่ผู้ใช้กรอกเสมอ ไม่ derive จาก splits (splits sum แสดงเป็น reference)
 
 ## 12 ตัวอย่างแผนหนึ่งสัปดาห์
 
@@ -725,8 +747,8 @@ export type PlanItemDTO = PlanItemBase & (
 - PlanItem ที่ผูก Active log ล็อกวัน ประเภท และ Prescription เพื่อรักษาแผนเดิม แก้ได้เฉพาะหมายเหตุ
 - หากต้องแก้โครงแผนหลังมีผลจริง ผู้ใช้ต้องลบผลจริงผ่าน UI ก่อน
 - Skipped กลับเป็น SCHEDULED ได้ก่อนบันทึกจริง หรือบันทึกย้อนหลังเพื่อเปลี่ยนเป็น Completed หรือ Partial
-- ลบ PlanItem ที่ไม่มีผลจริงเป็น Soft delete และมี Undo ชั่วคราว
-- WorkoutLog ลบเป็น Soft delete ไม่นับในสถิติและไม่ยึด Unique slot ของแผน
+- ลบ PlanItem ที่ไม่มีผลจริงเป็น Soft delete และมี Undo ผ่าน toast ประมาณ 10 วินาที
+- WorkoutLog ลบเป็น Soft delete ไม่นับในสถิติและไม่ยึด Unique slot ของแผน มี Undo ผ่าน toast เช่นกัน เวอร์ชันแรกไม่มี trash UI (กฏ Restore ฝั่ง API เก็บไว้รองรับอนาคต)
 - หลังลบ Log หากจะบันทึกใหม่ต้องสร้าง clientMutationId ใหม่ ส่วน Retry ด้วย ID เดิมคืนผล Operation เดิมและไม่ Restore ข้อมูลเอง
 - Restore ต้องตรวจ Conflict ใหม่ เช่น มี Log ใหม่ผูก PlanItem เดิมแล้ว
 - ห้ามลบสัปดาห์แล้วทำให้ WorkoutLog หายตาม
@@ -745,7 +767,7 @@ Save log ใช้ Client mutation ID ที่มี Unique constraint ต่�
 
 ### Privacy
 
-ทุก Query, Action และ Export ตรวจ Session จริงและ Ownership ฝั่ง Server ไม่ใช้เพียงการซ่อนปุ่มหรือการตรวจว่ามี Cookie ผู้ใช้ต้องอ่านหรือแก้ข้อมูลบัญชีอื่นไม่ได้จากการเปลี่ยน ID
+ทุก Query, Action และ Export ตรวจ Session จริงและ Ownership ฝั่ง Server ไม่ใช้เพียงการซ่อนปุ่มหรือการตรวจว่ามี Cookie ผู้ใช้ต้องอ่านหรือแก้ข้อมูลบัญชีอื่นไม่ได้จากการเปลี่ยน ID ไม่ใช้ RLS ในเวอร์ชันแรก (RLS เป็น hardening ในอนาคต)
 
 ไม่ใส่ Notes, Password, Tokens หรือรายละเอียดสุขภาพใน Application logs ไม่ส่ง Journal ไป External analytics โดยค่าเริ่มต้น
 
@@ -761,13 +783,15 @@ Export ใช้ schemaVersion = 1 พร้อม exportedAt, profile, goals, w
 | Running sessions | จำนวน Active RUNNING logs ไม่ใช่จำนวน Running steps |
 | Strength sessions | จำนวน Active STRENGTH logs ไม่ใช่จำนวนท่าหรือเซ็ต |
 | Training days | จำนวน performedDate ที่ไม่ซ้ำและมี Active log อย่างน้อยหนึ่งรายการ |
-| Plan completion | จำนวน PlanItem ที่มี Completed log ÷ จำนวน Active PlanItem ทั้งสัปดาห์ |
+| Plan completion | จำนวน PlanItem ที่มี Completed log ÷ จำนวน Active PlanItem ทั้งสัปดาห์ที่ไม่ใช่ Skipped (ดู ADR-0001) |
 | Partial | แสดงแยก ไม่ให้คะแนน 0.5 เอง |
-| Skipped และ Missed | ยังอยู่ในจำนวนแผนของสัปดาห์ |
+| Skipped | ออกจากตัวหาร completion แต่ยังแสดงในสัดส่วน |
+| Missed | ยังอยู่ในตัวหาร completion |
 | Rest | ไม่อยู่ในตัวหารเซสชัน และไม่เพิ่มระยะ 0 ในค่า Pace |
 | Unplanned logs | เพิ่ม Actual distance และ Sessions แต่ไม่เพิ่มตัวตั้งของ Plan completion |
-| ไม่มีแผนในสัปดาห์ | แสดง Completion เป็น “ยังไม่มีแผน” ไม่แสดง 0% หรือ 100% |
+| ไม่มีแผนในสัปดาห์ หรือข้ามทั้งหมด | แสดง Completion เป็น “ยังไม่มีแผน” หรือ “ข้ามทั้งหมด” ตามกรณี ไม่แสดง 0% หรือ 100% |
 | มีแผนแต่ยังไม่มีผลจริง | Actual distance แสดง 0 ส่วน Average pace แสดงขีดและคำว่า “ยังไม่มีข้อมูล” |
+| Splits | ไม่กระทบ aggregates (totals ของ Log เป็น source of truth) แสดงยอดรวม splits เป็น reference |
 
 ### ระยะและเวลาของ Structured workout
 
@@ -779,7 +803,7 @@ Export ใช้ schemaVersion = 1 พร้อม exportedAt, profile, goals, w
 - Repeat ต้องเคารพ includeFinalRecovery
 - ถ้า estimatedTotalDistanceM มีค่า ให้แสดงเป็น “ระยะประมาณ” และใช้แทนยอดระยะของเซสชัน ไม่บวกกับ knownDistanceM ซ้ำ
 - หากมีเซสชันที่ระยะไม่ครบ ห้ามสร้าง Progress bar เทียบระยะที่ดูเหมือนเป็นเป้าหมายรวมแน่นอน
-- ยอด Completion และยอดระยะใช้คนละฐานวันที่เมื่อมีการซ้อมข้ามวันแผน ต้องมี Label อธิบาย
+- ยอด Completion และยอดระยะใช้คนละฐานวันที่เมื่อมีการซ้อมข้ามวันแผน ต้องมี Label อธิบาย (ดู ADR-0002)
 
 ตัวอย่างทดสอบ Average pace: 5 km ใน 1800 วินาที และ 10 km ใน 4200 วินาที รวม 15 km ใน 6000 วินาที เท่ากับ 400 วินาทีต่อ km หรือ 6:40/km ไม่ใช่ 6:30/km
 
@@ -791,11 +815,13 @@ Export ใช้ schemaVersion = 1 พร้อม exportedAt, profile, goals, w
 | --- | --- |
 | Framework | Next.js App Router และ TypeScript strict |
 | Runtime | Node.js รุ่น Stable ที่เข้ากับ Dependencies และ Pin ไว้ |
+| Hosting | Vercel (app) + Supabase (Postgres + Auth) (ดู ADR-0003) |
 | Styling | Tailwind CSS และ CSS custom properties สำหรับ Design Tokens |
 | Components | shadcn/ui เป็น Primitive แล้วปรับ Style ตามสเปก ไม่ใช้ Default dashboard ทั้งชุด |
 | Form | React Hook Form และ Zod |
-| Database | PostgreSQL และ Drizzle ORM พร้อม Migration |
-| Auth | Better Auth แบบ Email Password ใช้ PostgreSQL เดียวกัน |
+| Database | Supabase Postgres และ Drizzle ORM พร้อม Migration (Drizzle ผ่าน connection string + pooler ไม่ใช้ RLS ในเวอร์ชันแรก) |
+| Auth | Supabase Auth แบบ Google-only (ไม่มี email/password ในเวอร์ชันแรก) userId เป็น Supabase user UUID |
+| Supabase client | @supabase/ssr สำหรับ session ใน App Router + @supabase/supabase-js |
 | Interaction | dnd-kit รุ่น Stable ที่เลือกให้เข้ากับ React ตรวจ API ของรุ่นนั้นก่อน Implement |
 | Charts | Recharts โหลดเฉพาะหน้าที่ใช้ พร้อมตารางข้อมูลหรือ Summary |
 | Icons | Lucide |
@@ -834,11 +860,11 @@ Database และ Auth secrets ไม่เข้าฝั่ง Client ปร�
 
 ### Environment และการรัน
 
-ต้องมี .env.example, DATABASE_URL, Auth secret และ Base URL ที่ Library รุ่นที่เลือกต้องการ รองรับ Database ภายในเครื่องหรือ PostgreSQL ที่มีอยู่แล้ว
+ต้องมี .env.example, DATABASE_URL (Supabase Postgres + pooler สำหรับ serverless), SUPABASE_URL, SUPABASE_ANON_KEY และ Google OAuth client (สร้างฟรีใน Google Cloud Console ไม่ต้องผูก billing) รองรับ Database ภายในเครื่องผ่าน docker-compose สำหรับ dev
 
-มี Docker Compose สำหรับ PostgreSQL ใน Development ถ้าโปรเจกต์ยังไม่มี Database วิธีรัน Migration และ Seed ต้องชัดและไม่ Drop ฐานข้อมูลโดยอัตโนมัติ Seed master เป็น Idempotent ส่วน Demo seed เปิดใช้อย่างชัดเจนและใช้ฐานข้อมูลหรือบัญชีสาธิตที่แยกจากผู้ใช้จริง
+มี Docker Compose สำหรับ PostgreSQL ใน Development วิธีรัน Migration และ Seed ต้องชัดและไม่ Drop ฐานข้อมูลโดยอัตโนมัติ Seed master เป็น Idempotent ส่วน Demo เป็นบัญชีสาธิตแยกจากบัญชีจริง เข้าด้วยปุ่ม one-click บนหน้า login (sign in หลังบ้านด้วย demo credentials) reseed ด้วย script ไม่มี auto-reset ในเวอร์ชันแรก
 
-README ต้องอธิบายติดตั้ง รัน Dev, Build, Start, Migrate, Seed, Test และสำรองฐานข้อมูลสำหรับ Self hosting
+README ต้องอธิบายติดตั้ง รัน Dev, Build, Start, Migrate, Seed, Test, ตั้งค่า Google OAuth client + Supabase, Deploy บน Vercel และสำรองฐานข้อมูล
 
 ## 16 Service Contracts
 
@@ -858,7 +884,10 @@ Server Actions ไม่จำเป็นต้องมี REST endpoint ซ�
 | copyWeek | sourceWeekId, targetWeekStartDate, mode, conflictChoices, expectedRevision | Deep copy ทั้งสัปดาห์แบบ Atomic |
 | saveWeekTemplate | weekId, name, expectedRevision | Template snapshot ที่ไม่ผูกกับต้นทาง |
 | applyTemplate | templateId, targetWeekStartDate, mode, expectedRevision | แผนใหม่ ไม่ย้ายผลจริง |
-| saveWorkoutLog | clientMutationId, planItemId optional, actualData | Active log หนึ่งรายการ พร้อม Derived metrics |
+| listTemplates | - | Templates ของผู้ใช้ |
+| renameTemplate | templateId, name | Template ที่เปลี่ยนชื่อแล้ว |
+| deleteTemplate | templateId | ลบ Template (ไม่กระทบสัปดาห์ที่สร้างไปแล้ว) |
+| saveWorkoutLog | clientMutationId, planItemId optional, actualData (รวม splits ถ้ามี) | Active log หนึ่งรายการ พร้อม Derived metrics |
 | updateWorkoutLog | logId, actualData | ผลจริงล่าสุดและสถิติใหม่ |
 | deleteWorkoutLog | logId | Soft delete และคืนสถานะแผนตามวันที่ |
 | getJournal | filters, cursor | ผลจริงแบบ Paginated |
@@ -889,7 +918,7 @@ Server Actions ไม่จำเป็นต้องมี REST endpoint ซ�
 | --- | --- |
 | Loading | Skeleton ใกล้โครงจริง ไม่ทำให้ Layout กระโดดมาก |
 | Saving | แสดง “กำลังบันทึก” ป้องกัน Double submit |
-| Success | อัปเดตข้อมูลจริง พร้อม Feedback สั้น |
+| Success | อัปเดตข้อมูลจริง พร้อม Feedback สั้น; การลบมี Undo ใน toast ประมาณ 10 วินาที |
 | Validation error | ใต้ Field และ Focus ไปจุดแรกที่ผิด |
 | Network error | คงค่าที่กรอกไว้ พร้อม Retry |
 | Conflict | แจ้งว่าข้อมูลเปลี่ยนแล้ว โหลดค่าล่าสุดก่อนแก้ต่อ |
@@ -907,19 +936,20 @@ Server Actions ไม่จำเป็นต้องมี REST endpoint ซ�
 | Phase | Ticket | งานและเกณฑ์จบ |
 | --- | --- | --- |
 | 1 | T01 | Scaffold, Tokens, Typography, App shell และ Navigation ทั้ง Mobile/Desktop |
-| 1 | T02 | Database migrations, Auth, UserProfile, Master seed และ Ownership checks |
+| 1 | T02 | Database migrations, Supabase Auth (Google-only), UserProfile ensure-on-login, Master seed และ Ownership checks |
 | 1 | T03 | Vertical slice: เพิ่ม Easy Run → บันทึกผลจริง → เปิด Journal หลัง Reload |
 | 1 | T04 | Home ครบ State มีหลายเซสชัน วันพัก ไม่มีแผน และทำครบ |
 | 2 | T05 | WeeklyPlan, DailyPlan และ Running plan form ครบระยะ เวลา และ Structured steps |
 | 2 | T06 | Strength library และ PlannedStrengthExercise พร้อม Reps/Time/Count mode |
 | 2 | T07 | Move, Reorder, DnD, Keyboard, Date picker fallback และ Conflict rollback |
 | 2 | T08 | Copy week, Rest conflicts และ Personal week templates |
-| 3 | T09 | Running/Strength logs แบบครบและบางส่วน บันทึกนอกแผนและย้อนหลัง |
+| 3 | T09 | Running/Strength logs แบบครบและบางส่วน บันทึกนอกแผนและย้อนหลัง ห้ามวันที่อนาคต |
+| 3 | T09b | Running splits รายรอบ (optional freeform ไม่ผูก planned steps totals เป็น truth) แสดงใน Detail |
 | 3 | T10 | Journal timeline, Calendar, Filter, Detail, Edit และ Delete |
 | 3 | T11 | Goals ทั้งสี่ระยะ Primary goal และเชื่อมผล Race Day |
 | 3 | T12 | Progress aggregates และ Charts ที่ใช้สูตรตรงกับ Home |
-| 4 | T13 | Settings, JSON export, Empty/Error/Offline states และ Demo seed |
-| 4 | T14 | Domain/E2E tests, Mobile QA, Production build และ README |
+| 4 | T13 | Settings, JSON export, Empty/Error/Offline states และ Demo account + one-click login |
+| 4 | T14 | Domain/E2E tests, Mobile QA, Production build และ README (E2E auth เลือกวิธีเองระหว่าง Google UI จริงกับ test backdoor แล้วบันทึกวิธีไว้) |
 
 หลัง T04 ตรวจแนวดีไซน์จาก Screenshot ของ Home และ Planner shell ก่อนขยาย Component pattern ไปทั้งระบบ หากโครงดูเหมือน Dashboard template ให้แก้ Tokens, Typography และองค์ประกอบหลักใน Phase นี้
 
@@ -939,6 +969,10 @@ Server Actions ไม่จำเป็นต้องมี REST endpoint ซ�
 - Log จากแผนซ้ำไม่ได้แม้กด Save สองครั้ง และ Log นอกแผน Retry ไม่สร้างซ้ำ
 - ลบผลจริงแล้วสถิติและสถานะแผนอัปเดตถูกต้อง
 - วันพักและแผนระยะไม่ครบไม่ทำให้สถิติผิด
+- Skipped ไม่อยู่ในตัวหาร completion และข้ามทั้งสัปดาห์แสดง “ข้ามทั้งหมด” ไม่ใช่ 0%
+- วันที่ซ้อมในอนาคตบันทึกไม่ได้ แต่ย้อนหลังได้ไม่จำกัด
+- Splits รายรอบเป็น optional ไม่เปลี่ยน totals และไม่กระทบสถิติ
+- Login ด้วย Google ได้ และ Demo เข้าด้วย one-click แยกจากบัญชีจริง
 - Goal ที่ไม่มีวันที่และไม่มี Target time ใช้งานได้ตามชนิดเป้าหมาย
 - ข้อมูลบัญชี A ไม่ปรากฏในบัญชี B และเข้าถึงข้ามบัญชีด้วย ID ไม่ได้
 - Export ครบแผน ผลจริง เป้าหมาย Templates และ Snapshot ที่จำเป็น ไม่มีข้อมูล Auth secrets
@@ -951,18 +985,21 @@ Server Actions ไม่จำเป็นต้องมี REST endpoint ซ�
 4. ระยะและเวลาของ Repeat รวมการไม่พักหลังรอบสุดท้าย
 5. Average pace แบบถ่วงด้วยระยะ รวมตัวอย่าง 6:40/km ในหัวข้อ 14
 6. Strength แบบวินาที ต่อข้าง สลับข้างรวม และต่อทิศทาง
-7. Completion ไม่นับวันพักและไม่ให้เครดิต Log นอกแผน
+7. Completion ไม่นับวันพักและ Skipped ไม่ให้เครดิต Log นอกแผน และสถานะ “ข้ามทั้งหมด”
 8. Concurrent move สอง Tab และ Save log แบบ Retry
 9. Delete log และ Restore conflict
 10. Ownership ของ Plan, Log, Goal และ Export
+11. Splits: optional อย่างน้อยระยะหรือเวลาหนึ่งอย่าง ไม่ override totals ไม่กระทบ aggregates
+12. วันที่ซ้อมอนาคตถูกปฏิเสธ ย้อนหลังไม่จำกัด
 
 ไม่ต้องเขียน Unit tests ที่ตรวจเพียงว่าข้อความหรือ CSS class ตรงกับ Implementation
 
 ### E2E Flow ที่ต้องผ่าน
 
-- Sign up → สร้าง Goal 21K → เพิ่ม Easy Run วันอังคาร → เพิ่ม Strength วันเดียวกัน → Reload
+- Login ด้วย Google (ตามวิธีที่ T14 เลือก) → สร้าง Goal 21K → เพิ่ม Easy Run วันอังคาร → เพิ่ม Strength วันเดียวกัน → Reload
 - ย้าย Easy Run ไปวันพุธ → บันทึก 5 km ใน 38 นาที → เห็น Pace 7:36/km และ Journal
 - Strength: บันทึก Split squat ซ้าย 10 ขวา 8 และ Plank 45 วินาที → เปิด Detail แล้วค่าตรง
+- Interval: บันทึกพร้อม splits รายรอบ → Detail แสดง splits และ totals ตรง สถิติใช้ totals
 - คัดลอกสัปดาห์ → ผลจริงไม่ถูกคัดลอก → บันทึกเป็น Template → ใช้กับสัปดาห์ใหม่
 - Network failure ระหว่าง Save → ค่าที่กรอกไม่หาย → Retry ไม่สร้างข้อมูลซ้ำ
 - Login บัญชีที่สอง → ไม่เห็นข้อมูลบัญชีแรก
@@ -980,7 +1017,7 @@ Server Actions ไม่จำเป็นต้องมี REST endpoint ซ�
 
 ## 20 Prompt สำหรับเริ่มงานกับ Codex
 
-คัดลอกข้อความต่อไปนี้ให้ Codex พร้อมไฟล์นี้ หาก Repository มีเอกสาร AGENTS.md ให้ใช้ร่วมกับข้อกำหนดในสเปก
+คัดลอกข้อความต่อไปนี้ให้ Codex พร้อมไฟล์นี้ หาก Repository มีเอกสาร CLAUDE.md ให้ใช้ร่วมกับข้อกำหนดในสเปก
 
 ```text
 สร้างเว็บแอป Modern Running Journal ตามไฟล์ Modern_Running_Journal_SPEC.md
@@ -988,12 +1025,12 @@ Server Actions ไม่จำเป็นต้องมี REST endpoint ซ�
 เป้าหมายคือแอป Mobile First สำหรับให้ผู้ใช้ตั้งเป้าหมายวิ่ง 5K, 10K,
 21K, 42K วางแผนรายสัปดาห์เอง บันทึก Running และ Strength และดูประวัติ
 
-เริ่มจากอ่าน Spec และตรวจ Repository/AGENTS.md ที่มีอยู่ ถ้าเป็นโปรเจกต์ใหม่
+เริ่มจากอ่าน Spec และตรวจ Repository/CLAUDE.md ที่มีอยู่ ถ้าเป็นโปรเจกต์ใหม่
 ให้ใช้ Next.js App Router + TypeScript strict + Tailwind + shadcn/ui
-+ PostgreSQL/Drizzle + Better Auth ตามสเปก เลือก Stable versions ที่เข้ากันได้
++ Supabase (Postgres/Drizzle + Auth Google-only) ตามสเปก เลือก Stable versions ที่เข้ากันได้
 และเก็บ Lockfile ถ้า Repo มี Stack เดิมที่ทำตาม Spec ได้ให้รักษา Convention เดิม
 
-ทำตาม Tickets T01–T14 โดยเริ่ม Vertical slice ที่เพิ่มแผนและบันทึกผลจริงได้
+ทำตาม Tickets T01–T14 (รวม T09b splits) โดยเริ่ม Vertical slice ที่เพิ่มแผนและบันทึกผลจริงได้
 จากนั้นขยาย Planner, Strength, Journal, Goals และ Progress ให้ครบ
 จัดการ Routine implementation choices เองและทำงานต่อจนขอบเขตเสร็จ
 หากพบข้อมูลที่ขาดและกระทบงานจริง ให้ระบุสมมติฐานหรือถามเฉพาะจุดที่จำเป็น
@@ -1014,6 +1051,9 @@ Today session เด่น Journal เป็นลิสต์ ไม่ใช�
 - Copy ต้อง Deep copy และไม่คัดลอก WorkoutLog
 - ตรวจ Session และ Ownership ทุก Query/Mutation/Export
 - Persist ลง Database และทุก CTA ต้องทำงานจริง
+- Completion ไม่นับ Skipped; ห้ามวันที่ซ้อมอนาคต
+- Splits เป็น optional freeform ไม่ override totals
+- Auth เป็น Google-only ผ่าน Supabase ไม่ใช้ RLS ใน v1
 
 ทดสอบ Business rules และ E2E ตาม Spec ตรวจ Mobile/Desktop
 รัน Typecheck, Lint, Tests และ Production build
@@ -1027,7 +1067,9 @@ Today session เด่น Journal เป็นลิสต์ ไม่ใช�
 
 - Next.js Mutating Data: https://nextjs.org/docs/app/getting-started/mutating-data
 - Drizzle Transactions: https://orm.drizzle.team/docs/transactions
-- Better Auth Next.js Integration: https://better-auth.com/docs/integrations/next
+- Supabase Auth with Next.js: https://supabase.com/docs/guides/auth/quickstarts/nextjs
+- Supabase Auth Server-Side (Next.js): https://supabase.com/docs/guides/auth/server-side/nextjs
+- Supabase Sign in with Google: https://supabase.com/docs/guides/auth/social-login/auth-google
 - dnd-kit Pointer sensor และข้อจำกัด Touch สำหรับ Legacy API: https://dndkit.com/legacy/api-documentation/sensors/pointer/
 - dnd-kit Documentation: https://dndkit.com/
 
