@@ -2,14 +2,14 @@ import { expect, test } from "@playwright/test";
 
 const ROUTES = [
   { path: "/", heading: "วันนี้" },
-  { path: "/plan", heading: "แผนซ้อม" },
-  { path: "/journal", heading: "บันทึก" },
-  { path: "/journal/demo-id", heading: "รายละเอียดผลซ้อม" },
   { path: "/goals", heading: "เป้าหมาย" },
   { path: "/goals/demo-id", heading: "รายละเอียดเป้าหมาย" },
   { path: "/progress", heading: "สถิติ" },
   { path: "/settings", heading: "ตั้งค่า" },
 ];
+
+// Signed-out visits to gated pages land on login with a next parameter.
+const GATED_ROUTES = ["/plan", "/journal", "/journal/demo-id"];
 
 const NAV_LABELS = ["วันนี้", "แผนซ้อม", "บันทึก", "เป้าหมาย", "สถิติ"];
 
@@ -28,10 +28,28 @@ for (const { path, heading } of ROUTES) {
   });
 }
 
+for (const path of GATED_ROUTES) {
+  test(`route ${path} redirects signed-out visitors to login`, async ({
+    page,
+  }) => {
+    await page.goto(path);
+    await expect(page).toHaveURL(/\/login\?next=/);
+    await expect(
+      page.getByRole("button", { name: "เข้าสู่ระบบด้วย Google" }),
+    ).toBeVisible();
+    const overflow = await page.evaluate(
+      () =>
+        document.documentElement.scrollWidth -
+        document.documentElement.clientWidth,
+    );
+    expect(overflow).toBeLessThanOrEqual(0);
+  });
+}
+
 test("exactly one nav visible per form factor with five labeled links", async ({
   page,
 }, testInfo) => {
-  await page.goto("/plan");
+  await page.goto("/");
   const isMobile = testInfo.project.name === "mobile";
   const visible = page.getByTestId(isMobile ? "bottom-nav" : "sidebar");
   const hidden = page.getByTestId(isMobile ? "sidebar" : "bottom-nav");
@@ -42,7 +60,7 @@ test("exactly one nav visible per form factor with five labeled links", async ({
     await expect(visible.getByRole("link", { name: label })).toBeVisible();
   }
   await expect(
-    visible.getByRole("link", { name: "แผนซ้อม" }),
+    visible.getByRole("link", { name: "วันนี้" }),
   ).toHaveAttribute("aria-current", "page");
 });
 

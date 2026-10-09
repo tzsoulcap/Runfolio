@@ -109,6 +109,21 @@ export const RunningWorkoutCodeSchema = z.enum([
 ]);
 export type RunningWorkoutCode = z.infer<typeof RunningWorkoutCodeSchema>;
 
+// Workout codes allowed as a session: everything except REST (§11).
+// (Named for the type, not the bout — see CONTEXT.md "Session".)
+export const NonRestWorkoutCodeSchema = z.enum([
+  "RECOVERY_RUN",
+  "EASY_RUN",
+  "LONG_RUN",
+  "TEMPO",
+  "INTERVAL",
+  "FARTLEK",
+  "HILL_REPEAT",
+  "STRIDES",
+  "RACE_DAY",
+]);
+export type NonRestWorkoutCode = z.infer<typeof NonRestWorkoutCodeSchema>;
+
 export const ActivityTypeSchema = z.enum([
   "RUNNING",
   "STRENGTH",

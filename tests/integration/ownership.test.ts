@@ -1,42 +1,8 @@
-import net from "node:net";
-
 import { afterEach, describe, expect, it } from "vitest";
 
-function tcpOk(host: string, port: number, ms = 5000): Promise<boolean> {
-  return new Promise((resolve) => {
-    const socket = net.connect({ host, port });
-    const done = (v: boolean) => {
-      socket.destroy();
-      resolve(v);
-    };
-    socket.once("connect", () => done(true));
-    socket.once("timeout", () => done(false));
-    socket.once("error", () => done(false));
-    socket.setTimeout(ms);
-  });
-}
+import { canRunDb } from "./db-gate";
 
-async function dbReachable(): Promise<boolean> {
-  const raw = process.env.DIRECT_URL || process.env.DATABASE_URL;
-  if (!raw) return false;
-  try {
-    const { hostname, port } = new URL(raw);
-    return await tcpOk(hostname, Number(port) || 5432);
-  } catch {
-    return false;
-  }
-}
-
-// Skips (loudly) only when Postgres is unreachable, e.g. sandboxed CI.
-// A skip is NOT a pass: run with DB access for a real result.
-const canRun = await dbReachable();
-if (!canRun) {
-  console.warn(
-    "SKIP integration/ownership: Postgres unreachable — NOT verified, run locally.",
-  );
-}
-
-describe.skipIf(!canRun)("profile ownership", () => {
+describe.skipIf(!canRunDb)("profile ownership", () => {
   const created: string[] = [];
   afterEach(async () => {
     if (created.length === 0) return;
