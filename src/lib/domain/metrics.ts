@@ -14,3 +14,13 @@ export function formatPace(pace: number | null): string | null {
   const s = Math.round(pace % 60);
   return `${m}:${String(s).padStart(2, "0")}`;
 }
+
+// Null-safe pace label for a log-like pair; null when pace is meaningless
+// (no distance, or no positive moving time).
+export function paceLabelFor(
+  distanceM: number | null,
+  movingSec: number | null,
+): string | null {
+  if (distanceM === null || movingSec === null || movingSec <= 0) return null;
+  return formatPace(paceSecPerKm(distanceM, movingSec));
+}

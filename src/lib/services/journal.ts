@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull, lte } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
 import { dailyPlans, planItems, workoutLogs } from "@/lib/db/schema";
@@ -31,6 +31,36 @@ export async function listLogs(
     log,
     plan: log.planItemId ? (plans.get(log.planItemId) ?? null) : null,
   }));
+}
+
+export type WeekActual = {
+  activityType: string;
+  distanceM: number | null;
+  movingDurationSec: number | null;
+};
+
+// Lean week-range actuals for the Home summary (§4). Includes off-plan logs:
+// they are real training done in this week.
+export async function listLogsInRange(
+  userId: string,
+  from: string,
+  to: string,
+): Promise<WeekActual[]> {
+  return db
+    .select({
+      activityType: workoutLogs.activityType,
+      distanceM: workoutLogs.distanceM,
+      movingDurationSec: workoutLogs.movingDurationSec,
+    })
+    .from(workoutLogs)
+    .where(
+      and(
+        eq(workoutLogs.userId, userId),
+        isNull(workoutLogs.deletedAt),
+        gte(workoutLogs.performedDate, from),
+        lte(workoutLogs.performedDate, to),
+      ),
+    );
 }
 
 export async function getLogDetail(userId: string, logId: string) {

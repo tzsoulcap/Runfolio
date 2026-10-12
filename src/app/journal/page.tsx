@@ -5,7 +5,7 @@ import { connection } from "next/server";
 
 import { getSessionUserId } from "@/lib/auth/session";
 import { formatDateTh, formatDistanceM, formatHMS, logDisplayName, weekdayTh } from "@/lib/format";
-import { formatPace, paceSecPerKm } from "@/lib/domain/metrics";
+import { paceLabelFor } from "@/lib/domain/metrics";
 import { listLogs } from "@/lib/services/journal";
 
 function JournalFallback() {
@@ -56,11 +56,7 @@ async function JournalContent() {
               </h2>
               <ul className="mt-2 divide-y divide-line rounded-card border border-line bg-paper">
                 {list.map(({ log, plan }) => {
-                  const pace = formatPace(
-                    log.distanceM !== null && log.movingDurationSec !== null
-                      ? paceSecPerKm(log.distanceM, log.movingDurationSec)
-                      : null,
-                  );
+                  const pace = paceLabelFor(log.distanceM, log.movingDurationSec);
                   return (
                     <li key={log.id}>
                       <Link

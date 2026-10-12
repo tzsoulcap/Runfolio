@@ -67,6 +67,57 @@ export function formatHMS(totalSec: number): string {
   return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 }
 
+export function greetingTh(hour: number): string {
+  if (hour >= 5 && hour < 12) return "สวัสดีตอนเช้า";
+  if (hour >= 12 && hour < 17) return "สวัสดีตอนบ่าย";
+  if (hour >= 17 && hour < 21) return "สวัสดีตอนเย็น";
+  return "สวัสดีตอนกลางคืน";
+}
+
+// Interval-style hero number: "5 × 800 m" from the first repeat block.
+// Null when there is no repeat to headline (caller falls back).
+export function formatStructuredMain(
+  target: RunningTarget | null | undefined,
+): string | null {
+  if (target?.kind !== "STRUCTURED") return null;
+  const repeat = target.steps.find((s) => s.kind === "REPEAT");
+  if (!repeat || repeat.kind !== "REPEAT") return null;
+  const work =
+    repeat.steps.find(
+      (s) => s.phase === "WORK" && s.target.kind === "DISTANCE",
+    ) ??
+    repeat.steps.find(
+      (s) => s.phase === "WORK" && s.target.kind === "DURATION",
+    );
+  if (!work) return null;
+  const t = work.target;
+  const dist =
+    t.kind === "DISTANCE"
+      ? formatDistanceM(t.distanceM)
+      : t.kind === "DURATION"
+        ? formatTargetTh(t)
+        : t.instruction;
+  return `${repeat.repeatCount} × ${dist}`;
+}
+
+export function formatStructuredDetail(
+  target: RunningTarget | null | undefined,
+): string | null {
+  if (target?.kind !== "STRUCTURED") return null;
+  const recoveryBits: string[] = [];
+  for (const block of target.steps) {
+    const steps = block.kind === "REPEAT" ? block.steps : [block];
+    for (const step of steps) {
+      if (step.phase !== "RECOVERY") continue;
+      const t = step.target;
+      recoveryBits.push(
+        t.kind === "OPEN" ? `พัก ${t.instruction}` : `พัก ${formatTargetTh(t)}`,
+      );
+    }
+  }
+  return recoveryBits.length > 0 ? recoveryBits.join(" · ") : null;
+}
+
 export const STATUS_TH: Record<DerivedPlanStatus, string> = {
   PLANNED: "ตามแผน",
   COMPLETED: "เสร็จแล้ว",

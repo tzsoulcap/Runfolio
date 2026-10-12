@@ -13,7 +13,7 @@ import {
   weekdayTh,
 } from "@/lib/format";
 import { RunningTargetSchema } from "@/lib/domain/master";
-import { formatPace, paceSecPerKm } from "@/lib/domain/metrics";
+import { paceLabelFor } from "@/lib/domain/metrics";
 import { ServiceError } from "@/lib/services/errors";
 import { getLogDetail } from "@/lib/services/journal";
 import { PagePlaceholder } from "@/components/page-placeholder";
@@ -47,10 +47,7 @@ async function JournalDetail({ id }: { id: string }) {
     title?: string;
     runningTarget?: unknown;
   } | null;
-  const pace =
-    log.distanceM !== null && log.movingDurationSec !== null
-      ? formatPace(paceSecPerKm(log.distanceM, log.movingDurationSec))
-      : null;
+  const pace = paceLabelFor(log.distanceM, log.movingDurationSec);
 
   return (
     <div>

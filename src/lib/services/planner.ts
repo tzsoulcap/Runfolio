@@ -20,7 +20,12 @@ import { ServiceError } from "./errors";
 export type DayWithItems = typeof dailyPlans.$inferSelect & {
   items: Array<
     typeof planItems.$inferSelect & {
-      log: { id: string; outcome: string } | null;
+      log: {
+        id: string;
+        outcome: string;
+        distanceM: number | null;
+        movingDurationSec: number | null;
+      } | null;
       status: DerivedPlanStatus;
     }
   >;
@@ -231,6 +236,8 @@ export async function listWeek(userId: string, monday: string, today: string) {
             id: workoutLogs.id,
             planItemId: workoutLogs.planItemId,
             outcome: workoutLogs.outcome,
+            distanceM: workoutLogs.distanceM,
+            movingDurationSec: workoutLogs.movingDurationSec,
           })
           .from(workoutLogs)
           .where(
@@ -246,7 +253,14 @@ export async function listWeek(userId: string, monday: string, today: string) {
     const day = days.find((d) => d.id === item.dailyPlanId);
     const entry = {
       ...item,
-      log: log ? { id: log.id, outcome: log.outcome } : null,
+      log: log
+        ? {
+            id: log.id,
+            outcome: log.outcome,
+            distanceM: log.distanceM,
+            movingDurationSec: log.movingDurationSec,
+          }
+        : null,
       status: derivePlanStatus(
         item,
         log ? { outcome: log.outcome } : null,

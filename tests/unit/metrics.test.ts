@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatPace, paceSecPerKm } from "@/lib/domain/metrics";
+import { formatPace, paceLabelFor, paceSecPerKm } from "@/lib/domain/metrics";
 
 describe("paceSecPerKm", () => {
   it("weights pace by distance (spec §14 example: 6:40/km)", () => {
@@ -24,5 +24,18 @@ describe("formatPace", () => {
 
   it("returns null display for null input", () => {
     expect(formatPace(null)).toBeNull();
+  });
+});
+
+describe("paceLabelFor", () => {
+  it("labels pace for a complete log pair", () => {
+    expect(paceLabelFor(5000, 2280)).toBe("7:36");
+  });
+
+  it("returns null when pace is meaningless", () => {
+    expect(paceLabelFor(null, 2280)).toBeNull();
+    expect(paceLabelFor(5000, null)).toBeNull();
+    expect(paceLabelFor(5000, 0)).toBeNull();
+    expect(paceLabelFor(0, 600)).toBeNull();
   });
 });
