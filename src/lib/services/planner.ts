@@ -4,6 +4,7 @@ import { db } from "@/lib/db/client";
 import {
   dailyPlans,
   planItems,
+  raceGoals,
   runningWorkoutMasters,
   weeklyPlans,
   workoutLogs,
@@ -13,7 +14,12 @@ import {
   PlanDraftSchema,
   type DerivedPlanStatus,
 } from "@/lib/domain/plan";
-import { isMonday, mondayOf, weekDates } from "@/lib/domain/week";
+import {
+  DateOnlySchema,
+  isMonday,
+  mondayOf,
+  weekDates,
+} from "@/lib/domain/week";
 
 import { ServiceError } from "./errors";
 
@@ -113,6 +119,27 @@ export async function getOrCreateWeek(userId: string, monday: string) {
   return db.transaction((tx) => ensureWeek(tx, userId, monday));
 }
 
+async function bumpRevision(
+  tx: DbTx,
+  weekId: string,
+  expectedRevision: number,
+): Promise<number> {
+  const bumped = await tx
+    .update(weeklyPlans)
+    .set({
+      revision: sql`${weeklyPlans.revision} + 1`,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(eq(weeklyPlans.id, weekId), eq(weeklyPlans.revision, expectedRevision)),
+    )
+    .returning({ revision: weeklyPlans.revision });
+  if (bumped.length === 0 || bumped[0].revision === undefined) {
+    throw new ServiceError("CONFLICT", "week changed; refetch and retry");
+  }
+  return bumped[0].revision;
+}
+
 export async function addPlanItem(
   userId: string,
   rawDraft: unknown,
@@ -148,6 +175,33 @@ export async function addPlanItem(
     if (!master || !master.isActive) {
       throw new ServiceError("NOT_FOUND", "workout master not found");
     }
+    // RACE_DAY distance comes from the linked goal, never typed input (§5).
+    let runningTarget = draft.runningTarget;
+    let raceGoalId: string | null = null;
+    if (draft.runningWorkoutCode === "RACE_DAY") {
+      if (!draft.goalId) {
+        throw validation("RACE_DAY plans need a goal link");
+      }
+      const [goal] = await tx
+        .select()
+        .from(raceGoals)
+        .where(
+          and(
+            eq(raceGoals.id, draft.goalId),
+            eq(raceGoals.userId, userId),
+            eq(raceGoals.status, "ACTIVE"),
+          ),
+        )
+        .limit(1);
+      if (!goal) {
+        throw new ServiceError("NOT_FOUND", "race goal not found");
+      }
+      runningTarget = { kind: "DISTANCE", distanceM: goal.distanceM };
+      raceGoalId = goal.id;
+    }
+    if (!runningTarget) {
+      throw validation("non-race plans need a target");
+    }
     const siblings = await tx
       .select({ sortOrder: planItems.sortOrder })
       .from(planItems)
@@ -167,8 +221,9 @@ export async function addPlanItem(
         runningWorkoutCode: master.code,
         title: master.nameEn,
         plannedStartTime: draft.plannedStartTime,
-        runningTarget: draft.runningTarget,
+        runningTarget,
         intensityTarget: draft.intensityTarget,
+        raceGoalId,
         note: draft.note,
         sortOrder,
         planState: "SCHEDULED",
@@ -179,23 +234,112 @@ export async function addPlanItem(
         },
       })
       .returning();
-    const bumped = await tx
-      .update(weeklyPlans)
+    if (!item) {
+      throw new ServiceError("CONFLICT", "plan insert failed; retry");
+    }
+    const revision = await bumpRevision(tx, week.id, expectedRevision);
+    return { item, revision };
+  });
+}
+
+export async function setRestDay(
+  userId: string,
+  date: string,
+  expectedRevision: number,
+  opts: { note?: string | null; removeUnlogged?: boolean } = {},
+): Promise<number> {
+  if (!DateOnlySchema.safeParse(date).success) {
+    throw validation("expected YYYY-MM-DD");
+  }
+  return db.transaction(async (tx) => {
+    const { week } = await ensureWeek(tx, userId, mondayOf(date));
+    const [day] = await tx
+      .select()
+      .from(dailyPlans)
+      .where(
+        and(eq(dailyPlans.weeklyPlanId, week.id), eq(dailyPlans.date, date)),
+      )
+      .limit(1);
+    if (!day) throw new ServiceError("NOT_FOUND", "day not found");
+    if (day.isRestDay) return week.revision;
+    const items = await tx
+      .select({ id: planItems.id })
+      .from(planItems)
+      .where(
+        and(eq(planItems.dailyPlanId, day.id), isNull(planItems.deletedAt)),
+      );
+    if (items.length > 0) {
+      const logs = await tx
+        .select({ id: workoutLogs.id })
+        .from(workoutLogs)
+        .where(
+          and(
+            inArray(
+              workoutLogs.planItemId,
+              items.map((i) => i.id),
+            ),
+            isNull(workoutLogs.deletedAt),
+          ),
+        )
+        .limit(1);
+      if (logs.length > 0) {
+        throw new ServiceError(
+          "CONFLICT",
+          "day has logs; cannot replace with rest day",
+        );
+      }
+      if (!opts.removeUnlogged) {
+        throw new ServiceError(
+          "CONFLICT",
+          "day has unlogged plans; remove them first",
+        );
+      }
+      await tx
+        .update(planItems)
+        .set({ deletedAt: new Date(), updatedAt: new Date() })
+        .where(
+          and(
+            eq(planItems.dailyPlanId, day.id),
+            isNull(planItems.deletedAt),
+          ),
+        );
+    }
+    await tx
+      .update(dailyPlans)
       .set({
-        revision: sql`${weeklyPlans.revision} + 1`,
+        isRestDay: true,
+        note: opts.note !== undefined ? opts.note : day.note,
         updatedAt: new Date(),
       })
+      .where(eq(dailyPlans.id, day.id));
+    return bumpRevision(tx, week.id, expectedRevision);
+  });
+}
+
+export async function unsetRestDay(
+  userId: string,
+  date: string,
+  expectedRevision: number,
+): Promise<number> {
+  if (!DateOnlySchema.safeParse(date).success) {
+    throw validation("expected YYYY-MM-DD");
+  }
+  return db.transaction(async (tx) => {
+    const { week } = await ensureWeek(tx, userId, mondayOf(date));
+    const [day] = await tx
+      .select()
+      .from(dailyPlans)
       .where(
-        and(
-          eq(weeklyPlans.id, week.id),
-          eq(weeklyPlans.revision, expectedRevision),
-        ),
+        and(eq(dailyPlans.weeklyPlanId, week.id), eq(dailyPlans.date, date)),
       )
-      .returning({ revision: weeklyPlans.revision });
-    if (bumped.length === 0 || !item) {
-      throw new ServiceError("CONFLICT", "week changed; refetch and retry");
-    }
-    return { item, revision: bumped[0].revision };
+      .limit(1);
+    if (!day) throw new ServiceError("NOT_FOUND", "day not found");
+    if (!day.isRestDay) return week.revision;
+    await tx
+      .update(dailyPlans)
+      .set({ isRestDay: false, note: null, updatedAt: new Date() })
+      .where(eq(dailyPlans.id, day.id));
+    return bumpRevision(tx, week.id, expectedRevision);
   });
 }
 

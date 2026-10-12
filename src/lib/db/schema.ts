@@ -15,6 +15,8 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
+import type { AnyPgColumn } from "drizzle-orm/pg-core";
+
 import type {
   IntensityTarget,
   RunningTarget,
@@ -154,6 +156,12 @@ export const planItems = pgTable(
     plannedStartTime: text("planned_start_time"),
     runningTarget: jsonb("running_target").$type<RunningTarget>(),
     intensityTarget: jsonb("intensity_target").$type<IntensityTarget>(),
+    raceGoalId: uuid("race_goal_id").references(
+      (): AnyPgColumn => raceGoals.id,
+      {
+        onDelete: "restrict",
+      },
+    ),
     note: text("note"),
     sortOrder: integer("sort_order").default(0).notNull(),
     planState: text("plan_state").default("SCHEDULED").notNull(),
@@ -164,6 +172,7 @@ export const planItems = pgTable(
   },
   (t) => [
     index("plan_items_day_order").on(t.dailyPlanId, t.sortOrder),
+    index("plan_items_race_goal").on(t.raceGoalId),
     check(
       "plan_items_state",
       sql`${t.planState} IN ('SCHEDULED', 'SKIPPED')`,
@@ -260,7 +269,7 @@ export const raceGoals = pgTable(
     isPrimary: boolean("is_primary").default(false).notNull(),
     status: text("status").default("ACTIVE").notNull(),
     resultWorkoutLogId: uuid("result_workout_log_id").references(
-      () => workoutLogs.id,
+      (): AnyPgColumn => workoutLogs.id,
       { onDelete: "restrict" },
     ),
     ...timestamps,

@@ -1,0 +1,53 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+
+import { unsetRestDayAction } from "@/app/plan/actions";
+import { Button } from "@/components/ui/button";
+
+export function UnsetRestButton({
+  date,
+  revision,
+}: {
+  date: string;
+  revision: number;
+}) {
+  const router = useRouter();
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function onClick() {
+    setPending(true);
+    setError(null);
+    const res = await unsetRestDayAction({ date, expectedRevision: revision });
+    if (!res.ok) {
+      setPending(false);
+      if (res.code === "UNAUTHENTICATED") {
+        router.push(`/login?next=${encodeURIComponent("/plan")}`);
+        return;
+      }
+      setError(res.message);
+      return;
+    }
+  }
+
+  return (
+    <div className="mt-2">
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={pending}
+        onClick={onClick}
+      >
+        {pending ? "กำลังบันทึก…" : "ยกเลิกวันพัก"}
+      </Button>
+      {error && (
+        <p role="alert" className="mt-2 text-base text-charcoal">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}

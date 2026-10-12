@@ -15,6 +15,13 @@
       "when": 1791530671474,
       "tag": "0001_enable-rls-deny",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791770853858,
+      "tag": "0002_narrow_warlock",
+      "breakpoints": true
     }
   ]
 }

@@ -13,6 +13,7 @@ import {
   weekDates,
 } from "@/lib/domain/week";
 import { getOwnProfile } from "@/lib/services/profile";
+import { listGoals } from "@/lib/services/goals";
 import { listRunningMasters, listWeek } from "@/lib/services/planner";
 import { DaySection } from "@/features/planner/day-section";
 
@@ -40,25 +41,19 @@ async function PlanContent({ week }: { week: string | undefined }) {
     : mondayOf(today);
   const dates = weekDates(monday);
 
-  const [{ week: weekRow, days }, masters] = await Promise.all([
+  const [{ week: weekRow, days }, masters, goals] = await Promise.all([
     listWeek(userId, monday, today),
     listRunningMasters(),
+    listGoals(userId),
   ]);
-  // T03 form handles DISTANCE/DURATION targets only; structured workouts and
-  // the RACE_DAY goal picker arrive with T05/T11.
-  const formMasters = masters
-    .filter(
-      (m) =>
-        m.code !== "REST" &&
-        m.code !== "RACE_DAY" &&
-        (m.defaultTarget === null || m.defaultTarget.kind !== "STRUCTURED"),
-    )
-    .map((m) => ({
-      code: m.code,
-      nameTh: m.nameTh,
-      nameEn: m.nameEn,
-      defaultTarget: m.defaultTarget,
-    }));
+  const formMasters = masters.map((m) => ({
+    code: m.code,
+    nameTh: m.nameTh,
+    nameEn: m.nameEn,
+    defaultTarget: m.defaultTarget,
+    zoneMin: m.zoneMin,
+    zoneMax: m.zoneMax,
+  }));
   const dayByDate = new Map(days.map((d) => [d.date, d]));
   const hasItems = days.some((d) => d.items.length > 0);
 
@@ -130,6 +125,7 @@ async function PlanContent({ week }: { week: string | undefined }) {
             date={d}
             day={dayByDate.get(d)}
             masters={formMasters}
+            goals={goals}
             revision={weekRow?.revision ?? 1}
             today={today}
           />

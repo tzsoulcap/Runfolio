@@ -53,7 +53,7 @@ describe("PlanDraftSchema", () => {
     expect(parsed.success).toBe(true);
   });
 
-  it("rejects REST as a session workout", () => {
+  it("rejects REST as a workout type with a target", () => {
     const parsed = PlanDraftSchema.safeParse({
       ...BASE,
       runningWorkoutCode: "REST",
@@ -62,13 +62,81 @@ describe("PlanDraftSchema", () => {
     expect(parsed.success).toBe(false);
   });
 
-  it("rejects RACE_DAY plans until the T11 goal picker exists", () => {
+  it("accepts RACE_DAY with a goal link and no typed target", () => {
     const parsed = PlanDraftSchema.safeParse({
       ...BASE,
       runningWorkoutCode: "RACE_DAY",
-      runningTarget: { kind: "DISTANCE", distanceM: 21097.5 },
+      goalId: "11111111-1111-4111-8111-111111111111",
     });
-    expect(parsed.success).toBe(false);
+    expect(parsed.success).toBe(true);
+  });
+
+  it("rejects RACE_DAY without a goal or with a typed target", () => {
+    expect(
+      PlanDraftSchema.safeParse({
+        ...BASE,
+        runningWorkoutCode: "RACE_DAY",
+        runningTarget: { kind: "DISTANCE", distanceM: 21097.5 },
+      }).success,
+    ).toBe(false);
+    expect(
+      PlanDraftSchema.safeParse({
+        ...BASE,
+        runningWorkoutCode: "RACE_DAY",
+      }).success,
+    ).toBe(false);
+    expect(
+      PlanDraftSchema.safeParse({
+        ...BASE,
+        runningWorkoutCode: "RACE_DAY",
+        goalId: "not-a-uuid",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects goalId on non-race plans and missing target", () => {
+    expect(
+      PlanDraftSchema.safeParse({
+        ...BASE,
+        goalId: "11111111-1111-4111-8111-111111111111",
+        runningTarget: { kind: "DISTANCE", distanceM: 6000 },
+      }).success,
+    ).toBe(false);
+    expect(
+      PlanDraftSchema.safeParse({ ...BASE }).success,
+    ).toBe(false);
+  });
+
+  it("accepts a structured interval draft", () => {
+    const parsed = PlanDraftSchema.safeParse({
+      ...BASE,
+      runningWorkoutCode: "INTERVAL",
+      runningTarget: {
+        kind: "STRUCTURED",
+        steps: [
+          {
+            kind: "REPEAT",
+            repeatCount: 5,
+            includeFinalRecovery: false,
+            steps: [
+              {
+                kind: "STEP",
+                phase: "WORK",
+                target: { kind: "DISTANCE", distanceM: 800 },
+                intensity: { kind: "NONE" },
+              },
+              {
+                kind: "STEP",
+                phase: "RECOVERY",
+                target: { kind: "DURATION", durationSec: 120 },
+                intensity: { kind: "NONE" },
+              },
+            ],
+          },
+        ],
+      },
+    });
+    expect(parsed.success).toBe(true);
   });
 
   it("rejects non-positive distance and malformed dates", () => {

@@ -5,13 +5,17 @@ import type { DerivedPlanStatus } from "@/lib/domain/plan";
 import { LogForm } from "@/features/journal/log-form";
 import {
   formatDateTh,
+  formatStructuredDetail,
+  formatStructuredMain,
   formatTargetTh,
   STATUS_TH,
   weekdayTh,
 } from "@/lib/format";
+import type { GoalOption } from "@/lib/services/goals";
 import type { DayWithItems } from "@/lib/services/planner";
 
 import { AddPlanForm, type MasterOption } from "./add-plan-form";
+import { UnsetRestButton } from "./unset-rest-button";
 
 // Exhaustive by construction: adding a status without a badge is a type error.
 const badgeCls: Record<DerivedPlanStatus, string> = {
@@ -26,20 +30,40 @@ function targetKm(target: DayWithItems["items"][number]["runningTarget"]) {
   return target?.kind === "DISTANCE" ? target.distanceM / 1000 : undefined;
 }
 
+function TargetLine({ item }: { item: DayWithItems["items"][number] }) {
+  const main =
+    formatStructuredMain(item.runningTarget) ??
+    formatTargetTh(item.runningTarget);
+  const detail = formatStructuredDetail(item.runningTarget);
+  return (
+    <p className="mt-0.5 text-base text-muted">
+      เป้าหมาย {main}
+      {detail ? ` · ${detail}` : ""}
+      {item.plannedStartTime ? ` · เริ่ม ${item.plannedStartTime}` : ""}
+    </p>
+  );
+}
+
 export function DaySection({
   date,
   day,
   masters,
+  goals,
   revision,
   today,
 }: {
   date: string;
   day: DayWithItems | undefined;
   masters: MasterOption[];
+  goals: GoalOption[];
   revision: number;
   today: string;
 }) {
   const items = day?.items ?? [];
+  const blockers = {
+    unloggedCount: items.filter((i) => i.log === null).length,
+    loggedCount: items.filter((i) => i.log !== null).length,
+  };
   return (
     <section
       id={`day-${date}`}
@@ -61,9 +85,12 @@ export function DaySection({
       </div>
 
       {day?.isRestDay ? (
-        <p className="mt-2 text-base text-muted">
-          วันพัก{day.note ? ` · ${day.note}` : ""}
-        </p>
+        <div className="mt-2">
+          <p className="text-base text-muted">
+            วันพัก{day.note ? ` · ${day.note}` : ""}
+          </p>
+          <UnsetRestButton date={date} revision={revision} />
+        </div>
       ) : (
         <div className="mt-3 space-y-3">
           {items.map((item) => (
@@ -74,12 +101,7 @@ export function DaySection({
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <h3 className="text-lg font-semibold">{item.title}</h3>
-                  <p className="mt-0.5 text-base text-muted">
-                    เป้าหมาย {formatTargetTh(item.runningTarget)}
-                    {item.plannedStartTime
-                      ? ` · เริ่ม ${item.plannedStartTime}`
-                      : ""}
-                  </p>
+                  <TargetLine item={item} />
                   {item.note && (
                     <p className="mt-1 text-base text-charcoal">{item.note}</p>
                   )}
@@ -110,7 +132,13 @@ export function DaySection({
               </div>
             </article>
           ))}
-          <AddPlanForm date={date} masters={masters} revision={revision} />
+          <AddPlanForm
+            date={date}
+            masters={masters}
+            goals={goals}
+            blockers={blockers}
+            revision={revision}
+          />
         </div>
       )}
     </section>

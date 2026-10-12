@@ -58,6 +58,16 @@ export function formatTargetTh(
   return "Structured";
 }
 
+// Parses plan-form pace input: "m:ss" or plain seconds. Null when invalid.
+export function parsePaceInput(raw: string): number | null {
+  const t = raw.trim();
+  if (t === "") return null;
+  const mss = /^(\d{1,3}):([0-5]\d)$/.exec(t);
+  if (mss) return Number(mss[1]) * 60 + Number(mss[2]);
+  if (/^\d+$/.test(t)) return Number(t);
+  return null;
+}
+
 export function formatHMS(totalSec: number): string {
   const h = Math.floor(totalSec / 3600);
   const m = Math.floor((totalSec % 3600) / 60);

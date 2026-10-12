@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import { RUNNING_MASTERS, STRENGTH_MASTERS } from "@/lib/db/seed-data";
 import {
+  IntensityTargetSchema,
+  RunningRepeatSchema,
   RunningWorkoutMasterSchema,
+  StepTargetSchema,
   StrengthExerciseMasterSchema,
 } from "@/lib/domain/master";
 
@@ -94,6 +97,134 @@ describe("running workout masters", () => {
     expect(tempo?.zoneMin).toBeUndefined();
     expect(tempo?.zoneMax).toBeUndefined();
     expect(tempo?.guidance).toMatch(/Z3/);
+  });
+});
+
+describe("RunningRepeatSchema (§11)", () => {
+  const work = {
+    kind: "STEP",
+    phase: "WORK",
+    target: { kind: "DISTANCE", distanceM: 800 },
+    intensity: { kind: "NONE" },
+  } as const;
+  const recovery = {
+    kind: "STEP",
+    phase: "RECOVERY",
+    target: { kind: "DURATION", durationSec: 120 },
+    intensity: { kind: "NONE" },
+  } as const;
+
+  it("accepts a repeat ending in recovery without final recovery", () => {
+    expect(
+      RunningRepeatSchema.safeParse({
+        kind: "REPEAT",
+        repeatCount: 5,
+        includeFinalRecovery: false,
+        steps: [work, recovery],
+      }).success,
+    ).toBe(true);
+  });
+
+  it("rejects skipping final recovery unless the last step is RECOVERY", () => {
+    expect(
+      RunningRepeatSchema.safeParse({
+        kind: "REPEAT",
+        repeatCount: 5,
+        includeFinalRecovery: false,
+        steps: [work],
+      }).success,
+    ).toBe(false);
+    expect(
+      RunningRepeatSchema.safeParse({
+        kind: "REPEAT",
+        repeatCount: 5,
+        includeFinalRecovery: true,
+        steps: [work],
+      }).success,
+    ).toBe(true);
+  });
+
+  it("rejects nested repeats, empty steps, and non-positive counts", () => {
+    const nested = {
+      kind: "REPEAT",
+      repeatCount: 2,
+      includeFinalRecovery: true,
+      steps: [work],
+    };
+    expect(
+      RunningRepeatSchema.safeParse({
+        kind: "REPEAT",
+        repeatCount: 5,
+        includeFinalRecovery: true,
+        steps: [nested],
+      }).success,
+    ).toBe(false);
+    expect(
+      RunningRepeatSchema.safeParse({
+        kind: "REPEAT",
+        repeatCount: 5,
+        includeFinalRecovery: true,
+        steps: [],
+      }).success,
+    ).toBe(false);
+    expect(
+      RunningRepeatSchema.safeParse({
+        kind: "REPEAT",
+        repeatCount: 0,
+        includeFinalRecovery: true,
+        steps: [work],
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe("StepTargetSchema (§11)", () => {
+  it("requires positive distance/duration and non-empty OPEN instruction", () => {
+    expect(
+      StepTargetSchema.safeParse({ kind: "DISTANCE", distanceM: 0 }).success,
+    ).toBe(false);
+    expect(
+      StepTargetSchema.safeParse({ kind: "DURATION", durationSec: -5 }).success,
+    ).toBe(false);
+    expect(
+      StepTargetSchema.safeParse({ kind: "OPEN", instruction: "" }).success,
+    ).toBe(false);
+    expect(
+      StepTargetSchema.safeParse({ kind: "OPEN", instruction: "เดินกลับ" }).success,
+    ).toBe(true);
+  });
+});
+
+describe("IntensityTargetSchema (§11)", () => {
+  it("orders zones and paces, and requires an effort label", () => {
+    expect(
+      IntensityTargetSchema.safeParse({ kind: "NONE" }).success,
+    ).toBe(true);
+    expect(
+      IntensityTargetSchema.safeParse({ kind: "HR_ZONE", zoneMin: 2, zoneMax: 4 })
+        .success,
+    ).toBe(true);
+    expect(
+      IntensityTargetSchema.safeParse({ kind: "HR_ZONE", zoneMin: 4, zoneMax: 2 })
+        .success,
+    ).toBe(false);
+    expect(
+      IntensityTargetSchema.safeParse({
+        kind: "PACE",
+        fastSecPerKm: 360,
+        slowSecPerKm: 400,
+      }).success,
+    ).toBe(true);
+    expect(
+      IntensityTargetSchema.safeParse({
+        kind: "PACE",
+        fastSecPerKm: 400,
+        slowSecPerKm: 360,
+      }).success,
+    ).toBe(false);
+    expect(
+      IntensityTargetSchema.safeParse({ kind: "EFFORT", label: "" }).success,
+    ).toBe(false);
   });
 });
 

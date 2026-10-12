@@ -5,7 +5,11 @@ import { revalidatePath } from "next/cache";
 import { requireUserId } from "@/lib/auth/session";
 import { saveWorkoutLog } from "@/lib/services/logging";
 import { ServiceError } from "@/lib/services/errors";
-import { addPlanItem } from "@/lib/services/planner";
+import {
+  addPlanItem,
+  setRestDay,
+  unsetRestDay,
+} from "@/lib/services/planner";
 
 export type ActionResult =
   | { ok: true; revision?: number; logId?: string }
@@ -20,14 +24,24 @@ function toResult(err: unknown): ActionResult {
         return {
           ok: false,
           code: err.code,
-          message: err.message.includes("rest day")
-            ? "วันพักเพิ่มเซสชันไม่ได้"
-            : err.message.includes("already has an active log")
-              ? "แผนนี้บันทึกผลไปแล้ว"
-              : "ข้อมูลเปลี่ยนไปแล้ว ลองใหม่อีกครั้ง",
+          message: err.message.includes("has logs")
+            ? "วันนี้มีผลบันทึกแล้ว เปลี่ยนเป็นวันพักไม่ได้"
+            : err.message.includes("remove them first")
+              ? "วันนี้ยังมีแผนที่ยังไม่บันทึก เลือกนำออกก่อน"
+              : err.message.includes("rest day")
+                ? "วันพักเพิ่มเซสชันไม่ได้"
+                : err.message.includes("already has an active log")
+                  ? "แผนนี้บันทึกผลไปแล้ว"
+                  : "ข้อมูลเปลี่ยนไปแล้ว ลองใหม่อีกครั้ง",
         };
       case "NOT_FOUND":
-        return { ok: false, code: err.code, message: "ไม่พบข้อมูล" };
+        return {
+          ok: false,
+          code: err.code,
+          message: err.message.includes("race goal")
+            ? "ไม่พบเป้าหมายที่เลือก"
+            : "ไม่พบข้อมูล",
+        };
       case "UNAUTHENTICATED":
         return {
           ok: false,
@@ -44,30 +58,27 @@ function toResult(err: unknown): ActionResult {
 export async function addPlanAction(input: {
   date: string;
   runningWorkoutCode: string;
-  targetKind: "DISTANCE" | "DURATION";
-  distanceKm?: number;
-  durationMin?: number;
+  runningTarget?: unknown;
+  intensityTarget?: unknown;
+  goalId?: string;
   plannedStartTime?: string;
   note?: string;
   expectedRevision: number;
 }): Promise<ActionResult> {
   try {
     const userId = await requireUserId();
+    // Server re-validates everything (§11): PlanDraftSchema owns the contract.
     const draft = {
       date: input.date,
       activityType: "RUNNING" as const,
       runningWorkoutCode: input.runningWorkoutCode,
-      runningTarget:
-        input.targetKind === "DISTANCE"
-          ? {
-              kind: "DISTANCE" as const,
-              distanceM: Math.round((input.distanceKm ?? 0) * 1000),
-            }
-          : {
-              kind: "DURATION" as const,
-              durationSec: Math.round((input.durationMin ?? 0) * 60),
-            },
-      intensityTarget: { kind: "NONE" as const },
+      ...(input.runningTarget !== undefined
+        ? { runningTarget: input.runningTarget }
+        : {}),
+      ...(input.intensityTarget !== undefined
+        ? { intensityTarget: input.intensityTarget }
+        : {}),
+      ...(input.goalId ? { goalId: input.goalId } : {}),
       plannedStartTime:
         input.plannedStartTime && input.plannedStartTime.length > 0
           ? input.plannedStartTime
@@ -79,6 +90,41 @@ export async function addPlanAction(input: {
       draft,
       input.expectedRevision,
     );
+    revalidatePath("/plan");
+    revalidatePath("/");
+    return { ok: true, revision };
+  } catch (err) {
+    return toResult(err);
+  }
+}
+
+export async function setRestDayAction(input: {
+  date: string;
+  note?: string;
+  removeUnlogged?: boolean;
+  expectedRevision: number;
+}): Promise<ActionResult> {
+  try {
+    const userId = await requireUserId();
+    const revision = await setRestDay(userId, input.date, input.expectedRevision, {
+      note: input.note && input.note.length > 0 ? input.note : undefined,
+      removeUnlogged: input.removeUnlogged,
+    });
+    revalidatePath("/plan");
+    revalidatePath("/");
+    return { ok: true, revision };
+  } catch (err) {
+    return toResult(err);
+  }
+}
+
+export async function unsetRestDayAction(input: {
+  date: string;
+  expectedRevision: number;
+}): Promise<ActionResult> {
+  try {
+    const userId = await requireUserId();
+    const revision = await unsetRestDay(userId, input.date, input.expectedRevision);
     revalidatePath("/plan");
     revalidatePath("/");
     return { ok: true, revision };
