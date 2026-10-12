@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 
-import { Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 
 import { getSessionUserId } from "@/lib/auth/session";
 import { formatDateTh, formatDayRange, formatDistanceM, weekdayTh } from "@/lib/format";
@@ -14,7 +14,8 @@ import {
   todayInTimeZone,
   weekDates,
 } from "@/lib/domain/week";
-import { summarizeWeek } from "@/lib/domain/home";
+import { deriveStripDay, summarizeWeek } from "@/lib/domain/home";
+import { StripDot } from "@/features/home/sections";
 import { getOwnProfile } from "@/lib/services/profile";
 import { listGoals } from "@/lib/services/goals";
 import {
@@ -34,7 +35,7 @@ const WEEKDAY_SHORT = ["จ", "อ", "พ", "พฤ", "ศ", "ส", "อา"];
 
 function PlanFallback() {
   return (
-    <div>
+    <div className="planner-page mx-auto max-w-[640px]">
       <h1 className="text-3xl font-semibold sm:text-4xl">แผนซ้อม</h1>
       <p className="mt-2 text-base text-muted">กำลังโหลดแผนซ้อม…</p>
     </div>
@@ -88,84 +89,74 @@ async function PlanContent({ week }: { week: string | undefined }) {
   const addTarget = dates.includes(today) ? today : (dates[0] ?? monday);
 
   return (
-    <div>
+    <div className="planner-page mx-auto max-w-[640px]">
       <div className="flex items-start justify-between gap-3">
-        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">แผนซ้อม</h1>
+        <h1 className="text-[clamp(28px,7.3vw,32px)] leading-tight font-bold tracking-tight">แผนซ้อม</h1>
         <PlanWeekMenu monday={monday} />
       </div>
-      <div className="mt-3 flex flex-wrap items-center gap-2">
+      <div className="mt-1 flex items-center gap-1">
         <Link
           href={`/plan?week=${addDays(monday, -7)}`}
-          className="inline-flex size-11 items-center justify-center rounded-full border border-line bg-paper text-xl"
+          className="inline-flex size-11 shrink-0 items-center justify-center rounded-button hover:bg-ivory"
           aria-label="สัปดาห์ก่อน"
         >
-          ‹
+          <ChevronLeft className="size-5" strokeWidth={1.75} aria-hidden />
         </Link>
-        <p className="mx-1 text-base font-semibold tabular-nums">
+        <p className="min-w-0 flex-1 text-center text-sm font-semibold tabular-nums sm:text-base">
           {formatDayRange(dates[0] ?? monday, dates[6] ?? monday)}
+          {" "}{monday.slice(0, 4)}
         </p>
         <Link
           href={`/plan?week=${addDays(monday, 7)}`}
-          className="inline-flex size-11 items-center justify-center rounded-full border border-line bg-paper text-xl"
+          className="inline-flex size-11 shrink-0 items-center justify-center rounded-button hover:bg-ivory"
           aria-label="สัปดาห์ถัดไป"
         >
-          ›
+          <ChevronRight className="size-5" strokeWidth={1.75} aria-hidden />
         </Link>
         <Link
           href="/plan"
-          className="inline-flex h-11 items-center rounded-full border border-line bg-paper px-5 text-base font-medium"
+          className="ml-2 inline-flex min-h-11 shrink-0 items-center rounded-button border border-line px-3 text-xs font-medium sm:text-sm"
         >
           สัปดาห์นี้
         </Link>
       </div>
 
-      <nav aria-label="แถบสัปดาห์" className="mt-4 grid grid-cols-7 gap-1">
+      <nav aria-label="แถบสัปดาห์" className="week-calendar mt-1">
         {dates.map((d, i) => {
           const day = dayByDate.get(d);
-          const count = day?.items.length ?? 0;
+          const stripDay = deriveStripDay(d, today, day);
           return (
             <a
               key={d}
               href={`#day-${d}`}
               aria-label={`ไปวัน${weekdayTh(d)}ที่ ${formatDateTh(d)}`}
-              className={`flex min-h-16 flex-col items-center justify-center gap-1 rounded-2xl py-2 text-base ${
-                d === today ? "bg-lime font-semibold" : ""
-              }`}
+              aria-current={d === today ? "date" : undefined}
+              className="week-calendar-day rounded-button transition-colors hover:bg-ivory"
             >
-              <span className="text-sm text-muted">{WEEKDAY_SHORT[i]}</span>
-              <span className="font-medium tabular-nums">
-                {Number(d.slice(8, 10))}
+              <span>{WEEKDAY_SHORT[i]}</span>
+              <span className={`week-calendar-date ${d === today ? "bg-lime-soft font-medium" : ""}`}>
+                <span>{Number(d.slice(8, 10))}</span>
+                <span className="flex h-[18px] items-center"><StripDot day={stripDay} /></span>
               </span>
-              {day?.isRestDay ? (
-                <span className="text-xs leading-none text-muted" aria-hidden="true">
-                  พัก
-                </span>
-              ) : count > 0 ? (
-                <span aria-hidden="true" className="size-2 rounded-full bg-lime-deep" />
-              ) : (
-                <span
-                  aria-hidden="true"
-                  className="size-2 rounded-full border border-line-strong"
-                />
-              )}
             </a>
           );
         })}
       </nav>
 
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-base font-semibold tabular-nums">
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-y border-line py-2">
+        <p className="text-[13px] tabular-nums sm:text-base">
+          <span className="font-semibold">
           {planned.plannedDistanceM > 0
             ? formatDistanceM(planned.plannedDistanceM)
-            : "–"}{" "}
+            : "–"}</span>{" "}
           · วิ่ง {runPlans} · Strength {planned.strengthPlanned}
         </p>
-        <Link
-          href={`#day-${addTarget}`}
-          className="inline-flex h-11 items-center gap-1.5 rounded-button bg-forest px-5 text-base font-medium text-ivory"
+        <a
+          href={`#day-${addTarget}-add`}
+          className="inline-flex min-h-11 items-center gap-1.5 rounded-button bg-forest px-3 text-sm font-medium text-paper"
         >
           <Plus className="size-5" aria-hidden /> เพิ่มการซ้อม
-        </Link>
+        </a>
       </div>
 
       {!hasItems && (

@@ -456,7 +456,7 @@ export function PlannerBoard({
         onDragEnd={onDragEnd}
         onDragCancel={onDragCancel}
       >
-        <div className="mt-4">
+        <div className="mt-1">
           {days.map((day) => (
             <DayColumn
               key={day.date}

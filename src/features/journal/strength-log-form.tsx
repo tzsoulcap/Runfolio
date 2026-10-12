@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
 import {
@@ -9,10 +9,7 @@ import {
 } from "@/app/plan/actions";
 import { Button } from "@/components/ui/button";
 import { inputCls, labelCls } from "@/components/ui/field";
-import type {
-  CountMode,
-  StrengthPrescription,
-} from "@/lib/domain/master";
+import type { CountMode, StrengthPrescription } from "@/lib/domain/master";
 import { mintKey } from "@/lib/keys";
 import { SIDES_BY_COUNT_MODE } from "@/lib/domain/log";
 import {
@@ -63,15 +60,11 @@ function masterByCode(
   return masters.find((m) => m.code === code);
 }
 
-function rowFromPlanned(
-  p: PlannedLogRow,
-  masters: ExerciseOption[],
-): ExRow {
+function rowFromPlanned(p: PlannedLogRow, masters: ExerciseOption[]): ExRow {
   const master = masterByCode(masters, p.exerciseCode);
   const measurement = p.prescription.measurement;
   const repLabel = master?.repLabel ?? "REPS";
-  const slotCount =
-    SIDES_BY_COUNT_MODE[p.prescription.countMode].length;
+  const slotCount = SIDES_BY_COUNT_MODE[p.prescription.countMode].length;
   return {
     key: mintKey("st"),
     plannedExerciseId: p.id,
@@ -82,9 +75,7 @@ function rowFromPlanned(
     repLabel,
     doseUnit: doseUnitFor(measurement, repLabel),
     planDose:
-      measurement === "REPS"
-        ? p.prescription.reps
-        : p.prescription.durationSec,
+      measurement === "REPS" ? p.prescription.reps : p.prescription.durationSec,
     sets: Array.from({ length: p.prescription.sets }, (_, i) =>
       blankSet(i + 1, slotCount),
     ),
@@ -102,9 +93,7 @@ function rowFromMaster(master: ExerciseOption): ExRow {
     countMode: p.countMode,
     repLabel: master.repLabel,
     doseUnit: doseUnitFor(p.measurement, master.repLabel),
-    sets: Array.from({ length: p.sets }, (_, i) =>
-      blankSet(i + 1, slotCount),
-    ),
+    sets: Array.from({ length: p.sets }, (_, i) => blankSet(i + 1, slotCount)),
   };
 }
 
@@ -165,9 +154,7 @@ function rowsFromInitial(
         : {}),
       exerciseCode: saved.exerciseCode,
       nameTh:
-        planRow?.masterSnapshot?.nameTh ??
-        master?.nameTh ??
-        saved.exerciseCode,
+        planRow?.masterSnapshot?.nameTh ?? master?.nameTh ?? saved.exerciseCode,
       measurement,
       countMode,
       repLabel,
@@ -198,6 +185,8 @@ export function StrengthLogForm({
   masters,
   today,
   edit,
+  compactTrigger = false,
+  triggerLabel,
 }: {
   planItemId?: string;
   planDate?: string;
@@ -205,6 +194,8 @@ export function StrengthLogForm({
   masters: ExerciseOption[];
   today: string;
   edit?: { logId: string; initial: StrengthLogInitial };
+  compactTrigger?: boolean;
+  triggerLabel?: ReactNode;
 }) {
   const router = useRouter();
   const offPlan = planItemId === undefined;
@@ -242,7 +233,6 @@ export function StrengthLogForm({
   );
   const [picked, setPicked] = useState(masters[0]?.code ?? "");
 
-
   function patchSlot(
     exKey: string,
     setNumber: number,
@@ -271,7 +261,7 @@ export function StrengthLogForm({
   }
 
   function confirmSet(exKey: string, setNumber: number) {
-        const ex = rows.find((e) => e.key === exKey);
+    const ex = rows.find((e) => e.key === exKey);
     if (!ex?.planDose) return;
     const dose = String(ex.planDose);
     setRows(
@@ -304,7 +294,7 @@ export function StrengthLogForm({
   }
 
   function addSet(exKey: string) {
-        setRows(
+    setRows(
       rows.map((e) =>
         e.key !== exKey
           ? e
@@ -323,7 +313,7 @@ export function StrengthLogForm({
   }
 
   function removeSet(exKey: string, setNumber: number) {
-        setRows(
+    setRows(
       rows.map((e) =>
         e.key !== exKey || e.sets.length <= 1
           ? e
@@ -336,13 +326,16 @@ export function StrengthLogForm({
     e.preventDefault();
     setServerError(null);
     const found: string[] = [];
-        if (rows.length === 0) {
+    if (rows.length === 0) {
       found.push("เพิ่มท่าอย่างน้อย 1 ท่า");
     }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(performedDate)) {
       found.push("วันที่ซ้อมจริงไม่ถูกต้อง");
     }
-    if (startTime.trim() !== "" && !/^([01]\d|2[0-3]):[0-5]\d$/.test(startTime.trim())) {
+    if (
+      startTime.trim() !== "" &&
+      !/^([01]\d|2[0-3]):[0-5]\d$/.test(startTime.trim())
+    ) {
       found.push("เวลาเริ่มแบบ 06:30");
     }
     let minutes: number | undefined;
@@ -449,9 +442,29 @@ export function StrengthLogForm({
   }
 
   if (!open) {
+    if (compactTrigger) {
+      return (
+        <button
+          type="button"
+          aria-label="บันทึกเวท"
+          onClick={() => setOpen(true)}
+          className="absolute inset-0 rounded-button transition-colors hover:bg-forest/[0.03]"
+        >
+          <span className="sr-only">บันทึกเวท</span>
+        </button>
+      );
+    }
     return (
-      <Button type="button" size="sm" onClick={() => setOpen(true)}>
-        {isEdit ? "แก้ไขผลเวท" : offPlan ? "บันทึกเวทนอกแผน" : "บันทึกเวท"}
+      <Button
+        type="button"
+        size="sm"
+        onClick={() => setOpen(true)}
+        aria-label={
+          isEdit ? "แก้ไขผลเวท" : offPlan ? "บันทึกเวทนอกแผน" : "บันทึกเวท"
+        }
+      >
+        {triggerLabel ??
+          (isEdit ? "แก้ไขผลเวท" : offPlan ? "บันทึกเวทนอกแผน" : "บันทึกเวท")}
       </Button>
     );
   }
@@ -459,7 +472,7 @@ export function StrengthLogForm({
   return (
     <form
       onSubmit={onSubmit}
-      className="mt-3 rounded-card border border-line bg-paper p-4"
+      className="form-panel col-span-full w-full"
       aria-label="ฟอร์มบันทึกเวท"
     >
       <div>
@@ -476,9 +489,8 @@ export function StrengthLogForm({
         />
         {planDate && performedDate !== planDate && (
           <p className="mt-1 text-sm text-muted">
-            แผนวัน{weekdayTh(planDate)}ที่ {formatDateTh(planDate)} ·
-            ทำจริงวัน{weekdayTh(performedDate)}ที่{" "}
-            {formatDateTh(performedDate)} ·
+            แผนวัน{weekdayTh(planDate)}ที่ {formatDateTh(planDate)} · ทำจริงวัน
+            {weekdayTh(performedDate)}ที่ {formatDateTh(performedDate)} ·
             ความสำเร็จนับกับสัปดาห์แผน ผลงานเวทนับวันที่ทำจริง
           </p>
         )}
@@ -522,10 +534,7 @@ export function StrengthLogForm({
             ? planned.find((p) => p.id === ex.plannedExerciseId)
             : undefined;
           return (
-            <li
-              key={ex.key}
-              className="rounded-button border border-line p-3"
-            >
+            <li key={ex.key} className="rounded-button border border-line p-3">
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <h3 className="text-base font-semibold">
@@ -654,9 +663,8 @@ export function StrengthLogForm({
                 </button>
               )}
               <p className="mt-1 text-sm text-muted">
-                เซ็ตที่เว้นว่างไว้ถือว่าข้าม ·
-                ช่องน้ำหนักว่างคือไม่บันทึก ใส่ 0 คือน้ำหนักตัว ·
-                น้ำหนักคือน้ำหนักภายนอกรวม เช่น ดัมเบลสองข้าง
+                เซ็ตที่เว้นว่างไว้ถือว่าข้าม · ช่องน้ำหนักว่างคือไม่บันทึก ใส่ 0
+                คือน้ำหนักตัว · น้ำหนักคือน้ำหนักภายนอกรวม เช่น ดัมเบลสองข้าง
                 ข้างละ 5 kg เก็บ 10 kg
               </p>
             </li>
@@ -774,7 +782,11 @@ export function StrengthLogForm({
       )}
       <div className="mt-4 flex gap-3">
         <Button type="submit" disabled={submitting}>
-          {submitting ? "กำลังบันทึก…" : isEdit ? "บันทึกการแก้ไข" : "บันทึกผลเวท"}
+          {submitting
+            ? "กำลังบันทึก…"
+            : isEdit
+              ? "บันทึกการแก้ไข"
+              : "บันทึกผลเวท"}
         </Button>
         <Button
           type="button"

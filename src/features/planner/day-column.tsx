@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -8,9 +8,9 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Moon, Plus } from "lucide-react";
+import { GripVertical, Moon, Plus } from "lucide-react";
 
-import { formatDateTh, weekdayTh } from "@/lib/format";
+import { formatDateTh, formatDayMonthTh, weekdayTh } from "@/lib/format";
 import type { GoalOption } from "@/lib/services/goals";
 
 import { AddPlanForm, type MasterOption } from "./add-plan-form";
@@ -24,8 +24,8 @@ import { UnsetRestButton } from "./unset-rest-button";
 
 function DragHandle({ title }: { title: string }) {
   return (
-    <span className="inline-flex size-11 shrink-0 items-center justify-center text-lg text-muted select-none">
-      ⠿<span className="sr-only">ลาก{title}</span>
+    <span className="inline-flex h-11 w-5 shrink-0 items-center justify-center text-muted select-none">
+      <GripVertical className="size-[18px]" aria-hidden /><span className="sr-only">ลาก{title}</span>
     </span>
   );
 }
@@ -75,20 +75,13 @@ function SortableItem({
         today={today}
         strengthMasters={strengthMasters}
         handle={
-          locked ? (
-            <span
-              aria-hidden="true"
-              className="inline-flex size-11 shrink-0 items-center justify-center text-lg text-muted/40 select-none"
-            >
-              ⠿
-            </span>
-          ) : (
+          locked ? null : (
             <button
               type="button"
               {...attributes}
               {...listeners}
               aria-label={`ลาก${item.title}`}
-              className="inline-flex size-11 shrink-0 touch-none items-center justify-center rounded-button text-lg text-muted select-none focus-visible:outline-2 focus-visible:outline-forest"
+              className="relative inline-flex h-11 w-5 shrink-0 touch-none items-center justify-center rounded-button text-muted select-none before:absolute before:inset-y-0 before:-inset-x-2.5 before:content-[''] focus-visible:outline-2 focus-visible:outline-forest"
             >
               <DragHandle title={item.title} />
             </button>
@@ -119,6 +112,22 @@ export function DayColumn({
   today: string;
   onMove: (itemId: string, targetDate: string, targetIndex?: number) => void;
 }) {
+  const [adding, setAdding] = useState<"RUNNING" | "STRENGTH" | null>(null);
+  useEffect(() => {
+    function openFromHash() {
+      if (window.location.hash === `#day-${day.date}-add`) setAdding("RUNNING");
+    }
+    function openFromLink(event: MouseEvent) {
+      if (event.target instanceof Element && event.target.closest(`a[href="#day-${day.date}-add"]`)) setAdding("RUNNING");
+    }
+    openFromHash();
+    window.addEventListener("hashchange", openFromHash);
+    document.addEventListener("click", openFromLink);
+    return () => {
+      window.removeEventListener("hashchange", openFromHash);
+      document.removeEventListener("click", openFromLink);
+    };
+  }, [day.date]);
   const { setNodeRef, isOver } = useDroppable({
     id: `day:${day.date}`,
     data: { type: "day", dayDate: day.date },
@@ -131,43 +140,46 @@ export function DayColumn({
     <section
       id={`day-${day.date}`}
       aria-label={`วัน${weekdayTh(day.date)}ที่ ${formatDateTh(day.date)}`}
-      className="scroll-mt-24 border-t border-line py-4 first:border-t-0 first:pt-0"
+      className="scroll-mt-20 border-t border-line py-1.5 first:border-t-0 first:pt-0"
     >
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-xl font-semibold">
-          วัน{weekdayTh(day.date)}
-          <span className="ml-2 text-base font-normal text-muted">
-            {formatDateTh(day.date)}
+        <h2 className="text-[clamp(17px,4.3vw,20px)] font-semibold">
+          {weekdayTh(day.date)}
+          <span className="ml-2 text-sm font-normal text-muted">
+            {formatDayMonthTh(day.date)}
           </span>
           {day.date === today && (
-            <span className="ml-2 rounded-full bg-lime px-3 py-1 align-middle text-sm font-semibold text-charcoal">
+            <span className="ml-2 rounded-full bg-lime px-3 py-0.5 align-middle text-xs font-medium text-charcoal">
               วันนี้
             </span>
           )}
         </h2>
         {!day.isRestDay && (
-          <Link
-            href={`#day-${day.date}-add`}
-            aria-label={`เพิ่มแผนวันที่ ${formatDateTh(day.date)}`}
+          <button
+            type="button"
+            onClick={() => setAdding((current) => current ? null : "RUNNING")}
+            aria-expanded={adding !== null}
+            aria-controls={`day-${day.date}-add`}
+            aria-label={`เพิ่มการซ้อมวันที่ ${day.date}`}
             className="flex size-11 shrink-0 items-center justify-center rounded-full text-charcoal transition-colors duration-200 hover:bg-forest/10"
           >
             <Plus className="size-5" aria-hidden />
-          </Link>
+          </button>
         )}
       </div>
 
       {day.isRestDay ? (
-        <div className="mt-2 flex items-center gap-3 rounded-card border border-line bg-paper p-4">
-          <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-forest/10">
-            <Moon className="size-5 text-forest" aria-hidden />
+        <div className="flex min-h-11 items-center gap-4 rounded-[10px] bg-[#f3f2ef] px-4">
+          <span className="flex size-6 shrink-0 items-center justify-center">
+            <Moon className="size-6 text-muted" strokeWidth={1.6} aria-hidden />
           </span>
-          <p className="min-w-0 flex-1 text-base text-charcoal">
+          <p className="min-w-0 flex-1 text-sm text-muted">
             วันพัก{day.note ? ` · ${day.note}` : ""}
           </p>
           <UnsetRestButton date={day.date} revision={revision} />
         </div>
       ) : (
-        <div className="mt-3 space-y-3">
+        <div className="space-y-2">
           <SortableContext
             items={day.items.map((i) => i.id)}
             strategy={verticalListSortingStrategy}
@@ -175,11 +187,11 @@ export function DayColumn({
             <ol
               ref={setNodeRef}
               aria-label={`รายการวันที่ ${formatDateTh(day.date)}`}
-              className={`space-y-3 rounded-card p-1 ${isOver ? "bg-slate-soft/50 outline-2 outline-dashed outline-forest" : ""}`}
+              className={`space-y-2 rounded-button ${isOver ? "bg-slate-soft/50 outline-2 outline-dashed outline-forest" : ""}`}
             >
               {day.items.length === 0 && (
-                <li className="rounded-button border border-dashed border-line p-4 text-center text-base text-muted">
-                  ยังไม่มีแผน ลากเซสชันมาวางที่นี่ได้
+                <li className="rounded-button border border-dashed border-line px-3 py-2 text-sm text-muted">
+                  ยังไม่มีแผน
                 </li>
               )}
               {day.items.map((item, index) => (
@@ -196,19 +208,28 @@ export function DayColumn({
               ))}
             </ol>
           </SortableContext>
-          <div id={`day-${day.date}-add`} className="flex scroll-mt-24 flex-wrap gap-2">
-            <AddPlanForm
+          <div id={`day-${day.date}-add`} className="scroll-mt-20">
+            {adding && <>
+              <div className="mb-2 flex gap-2" role="group" aria-label="ประเภทการซ้อม">
+                <button type="button" aria-pressed={adding === "RUNNING"} onClick={() => setAdding("RUNNING")} className={`min-h-11 rounded-button px-4 text-sm font-medium ${adding === "RUNNING" ? "bg-forest text-paper" : "bg-ivory text-muted"}`}>เพิ่มการซ้อม</button>
+                <button type="button" aria-pressed={adding === "STRENGTH"} onClick={() => setAdding("STRENGTH")} className={`min-h-11 rounded-button px-4 text-sm font-medium ${adding === "STRENGTH" ? "bg-forest text-paper" : "bg-ivory text-muted"}`}>เพิ่ม Strength</button>
+              </div>
+              {adding === "RUNNING" ? <AddPlanForm
+              initiallyOpen
+              onClose={() => setAdding(null)}
               date={day.date}
               masters={masters}
               goals={goals}
               blockers={blockers}
               revision={revision}
-            />
-            <AddStrengthForm
+            /> : <AddStrengthForm
+              initiallyOpen
+              onClose={() => setAdding(null)}
               date={day.date}
               exercises={strengthMasters}
               revision={revision}
-            />
+            />}
+            </>}
           </div>
         </div>
       )}

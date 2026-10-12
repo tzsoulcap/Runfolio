@@ -1,6 +1,6 @@
 // Home aggregations (§4). Pure: callers pass week rows + range logs, the
 // domain derives today state, week-strip flags, and week totals.
-import type { RunningTarget } from "./master";
+import type { IntensityTarget, RunningTarget } from "./master";
 import type { DerivedPlanStatus } from "./plan";
 import { parseDateOnly } from "./week";
 
@@ -9,6 +9,7 @@ export type TodayItem = {
   title: string;
   activityType: string;
   runningTarget: RunningTarget | null;
+  intensityTarget?: IntensityTarget | null;
   plannedStartTime: string | null;
   note: string | null;
   planState: string;

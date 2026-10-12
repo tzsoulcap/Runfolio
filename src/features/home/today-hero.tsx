@@ -1,11 +1,13 @@
 import Link from "next/link";
-import { ChevronRight, Dumbbell, Moon, Route } from "lucide-react";
+import { ArrowRight, ChevronRight, Dumbbell, Moon } from "lucide-react";
+import { RunningIcon } from "@/components/running-icon";
 
 import type { TodayItem, TodayState } from "@/lib/domain/home";
 import { paceLabelFor } from "@/lib/domain/metrics";
 import {
   formatDistanceM,
   formatHMS,
+  formatIntensityTh,
   formatStructuredDetail,
   formatStructuredMain,
   formatTargetTh,
@@ -35,27 +37,42 @@ function heroNumber(item: TodayItem): { main: string; detail: string | null } {
 }
 
 function heroSub(item: TodayItem, detail: string | null): string | null {
-  if (detail) return detail;
-  if (item.plannedStartTime) return `เริ่ม ${item.plannedStartTime}`;
-  if (item.note) return item.note;
-  return null;
+  return [
+    detail,
+    formatIntensityTh(item.intensityTarget),
+    item.note,
+    item.plannedStartTime ? `เริ่ม ${item.plannedStartTime}` : null,
+  ].filter(Boolean).join(" · ") || null;
+}
+
+function HeroTarget({ item }: { item: TodayItem }) {
+  const target = item.runningTarget;
+  if (item.activityType === "RUNNING" && target?.kind === "DISTANCE") {
+    return (
+      <p className="mt-0.5 flex flex-wrap items-baseline gap-x-2 text-[clamp(60px,15.5vw,72px)] leading-none font-bold tracking-tight">
+        <span>{(target.distanceM / 1000).toFixed(1)}</span>{" "}
+        <span className="text-[clamp(26px,6.7vw,32px)] font-semibold tracking-normal">km</span>
+      </p>
+    );
+  }
+  return <p className="mt-1 break-words text-4xl leading-tight font-bold tracking-tight">{heroNumber(item).main}</p>;
 }
 
 function CompactRow({ item, planHref }: { item: TodayItem; planHref: string }) {
-  const Icon = item.activityType === "STRENGTH" ? Dumbbell : Route;
+  const Icon = item.activityType === "STRENGTH" ? Dumbbell : RunningIcon;
   return (
     <li>
       <Link
         href={planHref}
-        className="flex min-h-11 items-center gap-3 border-t border-ivory/15 px-1 py-3"
+        className="flex min-h-14 items-center gap-4 border-t border-paper/25 px-1 pt-2"
       >
-        <Icon className="size-5 shrink-0 text-ivory/80" aria-hidden />
+        <Icon className={`size-7 shrink-0 text-paper ${item.activityType === "STRENGTH" ? "rotate-45" : ""}`} strokeWidth={1.8} aria-hidden />
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-base font-medium text-ivory">
+          <span className="block truncate text-lg leading-tight font-medium text-paper">
             {item.title}
           </span>
-          <span className="block text-sm text-ivory/70">
-            {heroNumber(item).main} · {STATUS_TH[item.status]}
+          <span className="block text-sm text-paper/85">
+            {heroNumber(item).main}{item.status !== "PLANNED" && ` · ${STATUS_TH[item.status]}`}
           </span>
         </span>
         <ChevronRight className="size-5 shrink-0 text-ivory/70" aria-hidden />
@@ -78,25 +95,23 @@ function PlanItemHero({
   const target = heroNumber(item);
   const sub = heroSub(item, target.detail);
   return (
-    <article className="rounded-[28px] bg-forest p-5 text-ivory sm:p-6">
+    <article className="today-card rounded-[20px] px-[18px] py-4 text-paper sm:p-5">
       {label && (
-        <p className="inline-flex rounded-full bg-lime px-3 py-1 text-sm font-semibold text-charcoal">
+        <p className="inline-flex rounded-full bg-lime px-4 py-1 text-xs font-semibold text-charcoal sm:text-sm">
           {label}
         </p>
       )}
-      <h2 className="mt-3 text-xl font-semibold">{item.title}</h2>
-      <p className="mt-1 text-5xl font-bold tracking-tight tabular-nums">
-        {target.main}
-      </p>
-      {sub && <p className="mt-1 text-base text-ivory/75">{sub}</p>}
+      <h2 className="mt-2.5 text-[clamp(26px,6.8vw,30px)] leading-tight font-semibold">{item.title}</h2>
+      <HeroTarget item={item} />
+      {sub && <p className="mt-1.5 text-[clamp(14px,3.5vw,16px)] leading-normal text-paper/95">{sub}</p>}
       <Link
         href={planHref}
-        className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-button bg-lime text-base font-semibold text-charcoal"
+        className="mt-2 flex min-h-11 w-full items-center justify-center gap-2 rounded-button bg-lime text-base font-semibold text-charcoal transition-colors hover:bg-lime-deep"
       >
-        บันทึกการซ้อม <span aria-hidden="true">→</span>
+        บันทึกการซ้อม <ArrowRight className="size-5" aria-hidden />
       </Link>
       {others.length > 0 && (
-        <ul className="mt-2">
+        <ul className="mt-3">
           {others.map((o) => (
             <CompactRow key={o.id} item={o} planHref={planHref} />
           ))}
@@ -121,7 +136,7 @@ function DoneAll({
   if (state.strengthCount > 0)
     parts.push(`Strength ${state.strengthCount} ครั้ง`);
   return (
-    <article className="rounded-[28px] bg-forest p-5 text-ivory sm:p-6">
+    <article className="today-card rounded-[20px] p-5 text-paper sm:p-6">
       <h2 className="text-xl font-semibold">
         {state.loggedCount > 0 ? "ซ้อมครบแล้ววันนี้" : "วันนี้ข้ามหมดแล้ว"}
       </h2>
@@ -189,14 +204,14 @@ export function TodayHero({
       );
     case "SINGLE":
       return (
-        <PlanItemHero item={state.item} others={[]} label={null} planHref={planHref} />
+        <PlanItemHero item={state.item} others={[]} label="วันนี้ · 1 เซสชัน" planHref={planHref} />
       );
     case "MULTI":
       return (
         <PlanItemHero
           item={state.hero}
           others={state.others}
-          label={`วันนี้ ${state.total} เซสชัน`}
+          label={`วันนี้ · ${state.total} เซสชัน`}
           planHref={planHref}
         />
       );

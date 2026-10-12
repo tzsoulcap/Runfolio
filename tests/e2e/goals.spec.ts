@@ -46,21 +46,23 @@ test("goal lifecycle: create, countdown, pace, achieve", async ({ page }) => {
   await form.getByLabel("วันแข่ง (ถ้ามี)").fill(eventDate);
   await form.getByLabel("นาที", { exact: true }).fill("50");
   await form.getByLabel("ตั้งเป็นเป้าหมายหลัก").check();
-  await form.getByRole("button", { name: "เพิ่มเป้าหมาย", exact: true }).click();
+  await form
+    .getByRole("button", { name: "เพิ่มเป้าหมาย", exact: true })
+    .click();
   await expect(page.getByText(eventName).first()).toBeVisible();
   await expect(page.getByText("หลัก").first()).toBeVisible();
 
   await page.locator("li", { hasText: eventName }).getByRole("link").click();
   await expect(page).toHaveURL(/\/goals\//);
-  await expect(page.getByText("อีก 30 วัน", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("อีก 30 วัน", { exact: true }).filter({ visible: true }),
+  ).toBeVisible();
   await expect(page.getByText("เพซ 5:00/km")).toBeVisible();
 
   await page.getByRole("button", { name: "ทำสำเร็จแล้ว" }).click();
   await expect(page.getByText("สำเร็จแล้ว").first()).toBeVisible();
   // Visible-only: the retained list subtree still carries its badge.
-  await expect(page.getByText("หลัก").filter({ visible: true })).toHaveCount(
-    0,
-  );
+  await expect(page.getByText("หลัก").filter({ visible: true })).toHaveCount(0);
 });
 
 test("result link, unlink, and delete-clears-link", async ({ page }) => {
@@ -92,7 +94,9 @@ test("result link, unlink, and delete-clears-link", async ({ page }) => {
   const form = page.getByRole("form", { name: "ฟอร์มเพิ่มเป้าหมาย" });
   await form.getByLabel("ระยะทาง").selectOption("10K");
   await form.getByLabel("ชื่องาน (ถ้ามี)").fill(eventName);
-  await form.getByRole("button", { name: "เพิ่มเป้าหมาย", exact: true }).click();
+  await form
+    .getByRole("button", { name: "เพิ่มเป้าหมาย", exact: true })
+    .click();
   await page.locator("li", { hasText: eventName }).getByRole("link").click();
   await expect(page).toHaveURL(/\/goals\//);
 
@@ -107,9 +111,7 @@ test("result link, unlink, and delete-clears-link", async ({ page }) => {
   await expect(
     page.getByRole("button", { name: "ยกเลิกการเชื่อม" }),
   ).toHaveCount(0);
-  await expect(
-    page.getByRole("button", { name: "เชื่อมผล" }),
-  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "เชื่อมผล" })).toBeVisible();
 
   // Link again, then delete the log: link clears, status stays.
   await page.getByRole("button", { name: "เชื่อมผล" }).click();
@@ -139,11 +141,13 @@ test("finish goal hides pace; dateless goal hides countdown", async ({
   const form = page.getByRole("form", { name: "ฟอร์มเพิ่มเป้าหมาย" });
   await form.getByLabel("ระยะทาง").selectOption("42K");
   await form.getByLabel("ชื่องาน (ถ้ามี)").fill(eventName);
-  await form.getByRole("button", { name: "เพิ่มเป้าหมาย", exact: true }).click();
+  await form
+    .getByRole("button", { name: "เพิ่มเป้าหมาย", exact: true })
+    .click();
   await page.locator("li", { hasText: eventName }).getByRole("link").click();
   await expect(page).toHaveURL(/\/goals\//);
-  await expect(
-    page.getByRole("region", { name: "เวลาเป้าหมาย" }),
-  ).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "เวลาเป้าหมาย" })).toHaveCount(
+    0,
+  );
   await expect(page.getByText("เพซ", { exact: true })).toHaveCount(0);
 });

@@ -63,8 +63,7 @@ function rowFromMaster(master: ExerciseOption): RowState {
     key: newKey(),
     code: master.code,
     sets: String(p.sets),
-    dose:
-      p.measurement === "REPS" ? String(p.reps) : String(p.durationSec),
+    dose: p.measurement === "REPS" ? String(p.reps) : String(p.durationSec),
     countMode: p.countMode,
     loadKg: p.loadKg === null ? "" : String(p.loadKg),
     restSec: p.restSec === undefined ? "" : String(p.restSec),
@@ -120,8 +119,7 @@ function buildPrescription(
 ): StrengthPrescription {
   const sets = Number(row.sets);
   const loadKg = row.loadKg.trim() === "" ? null : Number(row.loadKg);
-  const restSec =
-    row.restSec.trim() === "" ? undefined : Number(row.restSec);
+  const restSec = row.restSec.trim() === "" ? undefined : Number(row.restSec);
   const base = {
     sets,
     loadKg,
@@ -148,13 +146,17 @@ export function AddStrengthForm({
   date,
   exercises,
   revision,
+  initiallyOpen = false,
+  onClose,
 }: {
   date: string;
   exercises: ExerciseOption[];
   revision: number;
+  initiallyOpen?: boolean;
+  onClose?: () => void;
 }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(initiallyOpen);
   const [rows, setRows] = useState<RowState[]>([]);
   const [picked, setPicked] = useState(exercises[0]?.code ?? "");
   const [title, setTitle] = useState("Strength");
@@ -252,6 +254,7 @@ export function AddStrengthForm({
       setRows([]);
       setNote("");
       setOpen(false);
+      onClose?.();
       router.refresh();
     } finally {
       setSaving(false);
@@ -275,7 +278,7 @@ export function AddStrengthForm({
   return (
     <form
       onSubmit={onSubmit}
-      className="w-full rounded-card border border-line bg-paper p-4"
+      className="form-panel w-full"
       aria-label={`ฟอร์มเพิ่ม Strength วันที่ ${date}`}
     >
       <div>
@@ -331,10 +334,7 @@ export function AddStrengthForm({
           const id = `${date}-${row.key}`;
           const modes = isTime ? TIME_MODES : REPS_MODES;
           return (
-            <li
-              key={row.key}
-              className="rounded-button border border-line p-3"
-            >
+            <li key={row.key} className="rounded-button border border-line p-3">
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <p className="text-base font-semibold">
@@ -529,6 +529,7 @@ export function AddStrengthForm({
           variant="outline"
           onClick={() => {
             setOpen(false);
+            onClose?.();
             setErrors([]);
             setServerError(null);
           }}

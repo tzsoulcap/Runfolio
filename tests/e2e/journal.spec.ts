@@ -42,9 +42,7 @@ async function createOffPlanRun(page: Page, note: string, km = "5") {
   await form.getByLabel("ระยะทางจริง (km)").fill(km);
   await form.getByLabel("นาที", { exact: true }).fill("30");
   await form.getByLabel("หมายเหตุ").fill(note);
-  await form
-    .getByRole("button", { name: "บันทึกผลจริง", exact: true })
-    .click();
+  await form.getByRole("button", { name: "บันทึกผลจริง", exact: true }).click();
   await expect(page.getByText(note).first()).toBeVisible();
 }
 
@@ -57,9 +55,7 @@ async function createOffPlanStrength(page: Page, note: string) {
   await form.getByRole("button", { name: "เพิ่มท่า" }).click();
   await form.getByLabel("วินาที").nth(0).fill("45");
   await form.getByLabel("หมายเหตุ").fill(note);
-  await form
-    .getByRole("button", { name: "บันทึกผลเวท", exact: true })
-    .click();
+  await form.getByRole("button", { name: "บันทึกผลเวท", exact: true }).click();
   await expect(page.getByText(note).first()).toBeVisible();
 }
 
@@ -83,6 +79,7 @@ test("filters and search narrow the timeline", async ({ page }) => {
   await createOffPlanStrength(page, stNote);
 
   // Activity filter: strength only, with its session summary.
+  await page.getByRole("button", { name: "ตัวกรอง", exact: true }).click();
   await page.getByLabel("กิจกรรม").selectOption("STRENGTH");
   await page.getByRole("button", { name: "ค้นหา", exact: true }).click();
   await expect(page.getByText(stNote).first()).toBeVisible();
@@ -95,6 +92,7 @@ test("filters and search narrow the timeline", async ({ page }) => {
   await expect(page.getByText(stNote).first()).toBeVisible();
 
   // Search matches the note.
+  await page.getByRole("button", { name: "ตัวกรอง", exact: true }).click();
   await page.getByLabel("ค้นหาชื่อหรือหมายเหตุ").fill(runNote);
   await page.getByRole("button", { name: "ค้นหา", exact: true }).click();
   await expect(page.getByText(runNote).first()).toBeVisible();
@@ -116,9 +114,7 @@ test("calendar shows counts and drills into a day", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: `${MONTH_TH[(m ?? 1) - 1]} ${y}` }),
   ).toBeVisible();
-  const dayLink = page
-    .getByRole("link", { name: /มี \d+ บันทึก/ })
-    .first();
+  const dayLink = page.getByRole("link", { name: /มี \d+ บันทึก/ }).first();
   await expect(dayLink).toBeVisible();
   await dayLink.click();
   await expect(page).toHaveURL(/from=\d{4}-\d{2}-\d{2}/);
@@ -169,9 +165,7 @@ test("deletes with confirm and restores with undo", async ({ page }) => {
   ).toBeVisible();
   // Visible-only: soft navigation keeps the old detail subtree mounted
   // but hidden, and it still contains the note.
-  await expect(page.getByText(note).filter({ visible: true })).toHaveCount(
-    0,
-  );
+  await expect(page.getByText(note).filter({ visible: true })).toHaveCount(0);
 
   await page.getByRole("button", { name: "เลิกทำ", exact: true }).click();
   await expect(page).toHaveURL(/\/journal\//);

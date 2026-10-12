@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Trash2 } from "lucide-react";
 
 import { deleteLogAction } from "@/app/plan/actions";
 import { Button } from "@/components/ui/button";
@@ -39,9 +40,11 @@ export function DeleteLogButton({ logId }: { logId: string }) {
       <div>
         <Button
           type="button"
+          size="sm"
           variant="ghost"
           onClick={() => setConfirming(true)}
         >
+          <Trash2 aria-hidden />
           ลบบันทึก
         </Button>
         {error && (
@@ -57,9 +60,9 @@ export function DeleteLogButton({ logId }: { logId: string }) {
     <div
       role="alertdialog"
       aria-label="ยืนยันการลบ"
-      className="rounded-card border border-line bg-paper p-4"
+      className="form-panel col-span-full w-full"
     >
-      <p className="text-base">
+      <p className="text-sm leading-relaxed">
         ลบบันทึกนี้จริงหรือไม่ การลบมีผลต่อประวัติและสถิติ
         แผนที่ผูกไว้จะกลับเป็นยังไม่บันทึก
       </p>

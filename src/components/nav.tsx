@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  BookOpenText,
   CalendarDays,
   ChartColumn,
+  CirclePlus,
   CircleUserRound,
   House,
   Target,
@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 const NAV_ITEMS = [
   { href: "/", label: "วันนี้", Icon: House },
   { href: "/plan", label: "แผนซ้อม", Icon: CalendarDays },
-  { href: "/journal", label: "บันทึก", Icon: BookOpenText },
+  { href: "/journal", label: "บันทึก", Icon: CirclePlus },
   { href: "/goals", label: "เป้าหมาย", Icon: Target },
   { href: "/progress", label: "สถิติ", Icon: ChartColumn },
 ] as const;
@@ -25,32 +25,40 @@ function isActive(pathname: string, href: string) {
   return href === "/" ? pathname === "/" : pathname.startsWith(href);
 }
 
-export function Header({ initial }: { initial: string | null }) {
+type HeaderProps = { initial: string | null };
+
+function ProfileLink({ initial }: HeaderProps) {
   return (
-    <header className="sticky top-0 z-30 border-b border-line bg-ivory">
-      <div className="mx-auto flex h-14 w-full max-w-[1180px] items-center justify-between px-4 sm:px-5 lg:justify-end">
-        <Link href="/" className="text-lg font-bold tracking-tight lg:hidden">
+    <Link
+      href="/settings"
+      aria-label="ตั้งค่า"
+      className="app-profile-link flex size-11 items-center justify-center rounded-full transition-colors duration-200 hover:bg-forest/10"
+    >
+      {initial ? (
+        <span
+          aria-hidden="true"
+          className="flex size-[clamp(36px,9vw,42px)] items-center justify-center rounded-full bg-[#ebe8e0] text-lg font-medium text-forest"
+        >
+          {initial}
+        </span>
+      ) : (
+        <CircleUserRound className="size-7 text-charcoal" strokeWidth={1.75} />
+      )}
+    </Link>
+  );
+}
+
+export function Header({ initial }: HeaderProps) {
+  return (
+    <header className="sticky top-0 z-30 bg-paper/95 backdrop-blur-sm lg:border-b lg:border-line lg:bg-ivory/95">
+      <div className="mx-auto flex h-[60px] w-full max-w-[1180px] items-center justify-between px-5 lg:justify-end">
+        <Link
+          href="/"
+          className="text-[clamp(22px,5.2vw,24px)] font-bold tracking-tight lg:hidden"
+        >
           Runfolio
         </Link>
-        <Link
-          href="/settings"
-          aria-label="ตั้งค่า"
-          className="flex size-11 items-center justify-center rounded-full transition-colors duration-200 hover:bg-forest/10"
-        >
-          {initial ? (
-            <span
-              aria-hidden="true"
-              className="flex size-8 items-center justify-center rounded-full bg-forest text-base font-semibold text-ivory"
-            >
-              {initial}
-            </span>
-          ) : (
-            <CircleUserRound
-              className="size-7 text-charcoal"
-              strokeWidth={1.75}
-            />
-          )}
-        </Link>
+        <ProfileLink initial={initial} />
       </div>
     </header>
   );
@@ -62,9 +70,9 @@ export function BottomNav() {
     <nav
       aria-label="เมนูหลัก"
       data-testid="bottom-nav"
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-paper lg:hidden"
+      className="app-bottom-nav fixed inset-x-0 bottom-0 z-40 border-t border-line bg-paper lg:hidden"
     >
-      <ul className="grid grid-cols-5 gap-1 px-2 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
+      <ul className="mx-auto grid max-w-[640px] grid-cols-5 gap-1 px-2 pt-1.5 pb-[calc(0.375rem+env(safe-area-inset-bottom))]">
         {NAV_ITEMS.map(({ href, label, Icon }) => {
           const active = isActive(pathname, href);
           return (
@@ -73,25 +81,32 @@ export function BottomNav() {
                 href={href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-button px-1 py-1.5 text-xs transition-colors duration-200",
+                  "flex min-h-[54px] flex-col items-center justify-center gap-1 rounded-button px-1 py-1 text-[clamp(11px,3vw,13px)] transition-colors duration-200",
                   active
-                    ? "font-semibold text-charcoal"
+                    ? "font-semibold text-forest"
                     : "font-normal text-muted hover:text-charcoal",
                 )}
               >
                 <Icon
-                  className="size-5"
-                  strokeWidth={active ? 2.25 : 1.75}
-                  aria-hidden
-                />
-                <span>{label}</span>
-                <span
-                  aria-hidden
                   className={cn(
-                    "h-0.5 w-6 rounded-full bg-charcoal",
-                    active ? "opacity-100" : "opacity-0",
+                    "size-[clamp(22px,5.2vw,24px)]",
+                    active &&
+                      href === "/plan" &&
+                      "[&_rect]:fill-forest [&_rect]:stroke-forest [&_path]:stroke-paper",
                   )}
-                />
+                  fill={active && href === "/" ? "currentColor" : "none"}
+                  strokeWidth={active ? 2 : 1.6}
+                  aria-hidden
+                >
+                  {active && href === "/" && (
+                    <path
+                      d="M9 21v-8a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v8Z"
+                      fill="var(--color-paper)"
+                      stroke="none"
+                    />
+                  )}
+                </Icon>
+                <span>{label}</span>
               </Link>
             </li>
           );

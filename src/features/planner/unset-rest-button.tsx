@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { unsetRestDayAction } from "@/app/plan/actions";
 import { Button } from "@/components/ui/button";
+import { MoreHorizontal } from "lucide-react";
 
 export function UnsetRestButton({
   date,
@@ -33,15 +34,16 @@ export function UnsetRestButton({
   }
 
   return (
-    <div className="mt-2">
+    <div>
       <Button
         type="button"
-        variant="outline"
-        size="sm"
+        size="icon"
+        variant="ghost"
+        aria-label="ยกเลิกวันพัก"
         disabled={pending}
         onClick={onClick}
       >
-        {pending ? "กำลังบันทึก…" : "ยกเลิกวันพัก"}
+        {pending ? <span className="text-xs">…</span> : <MoreHorizontal aria-hidden />}
       </Button>
       {error && (
         <p role="alert" className="mt-2 text-base text-charcoal">

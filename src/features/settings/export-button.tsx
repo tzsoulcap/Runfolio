@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Download } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { FieldError } from "@/components/ui/field";
@@ -42,7 +43,14 @@ export function ExportButton() {
 
   return (
     <div>
-      <Button type="button" variant="outline" disabled={busy} onClick={download}>
+      <Button
+        type="button"
+        variant="outline"
+        disabled={busy}
+        onClick={download}
+        className="w-full px-3 text-sm"
+      >
+        <Download aria-hidden />
         {busy ? "กำลังเตรียมไฟล์…" : "ดาวน์โหลดข้อมูล (JSON)"}
       </Button>
       {error && (

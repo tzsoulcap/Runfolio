@@ -2,11 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Pencil, Plus } from "lucide-react";
 
-import {
-  createGoalAction,
-  updateGoalAction,
-} from "@/app/plan/actions";
+import { createGoalAction, updateGoalAction } from "@/app/plan/actions";
 import { Button } from "@/components/ui/button";
 import { inputCls, labelCls } from "@/components/ui/field";
 import { GOAL_DISTANCES } from "@/lib/domain/goal";
@@ -56,9 +54,7 @@ export function GoalForm({
   );
   const [eventName, setEventName] = useState(initial?.eventName ?? "");
   const [eventDate, setEventDate] = useState(initial?.eventDate ?? "");
-  const [targetHours, setTargetHours] = useState(
-    initial?.targetHours ?? "",
-  );
+  const [targetHours, setTargetHours] = useState(initial?.targetHours ?? "");
   const [targetMinutes, setTargetMinutes] = useState(
     initial?.targetMinutes ?? "",
   );
@@ -141,7 +137,8 @@ export function GoalForm({
 
   if (!open) {
     return (
-      <Button type="button" onClick={() => setOpen(true)}>
+      <Button type="button" size="sm" onClick={() => setOpen(true)}>
+        {isEdit ? <Pencil aria-hidden /> : <Plus aria-hidden />}
         {isEdit ? "แก้ไขเป้าหมาย" : "เพิ่มเป้าหมาย"}
       </Button>
     );
@@ -150,7 +147,7 @@ export function GoalForm({
   return (
     <form
       onSubmit={onSubmit}
-      className="mt-3 rounded-card border border-line bg-paper p-4"
+      className="form-panel col-span-full w-full"
       aria-label={isEdit ? "ฟอร์มแก้ไขเป้าหมาย" : "ฟอร์มเพิ่มเป้าหมาย"}
     >
       <div className="grid grid-cols-2 gap-2">
@@ -164,13 +161,13 @@ export function GoalForm({
             value={distanceCode}
             onChange={(e) => setDistanceCode(e.target.value)}
           >
-            {(Object.keys(GOAL_DISTANCES) as Array<keyof typeof GOAL_DISTANCES>).map(
-              (code) => (
-                <option key={code} value={code}>
-                  {code}
-                </option>
-              ),
-            )}
+            {(
+              Object.keys(GOAL_DISTANCES) as Array<keyof typeof GOAL_DISTANCES>
+            ).map((code) => (
+              <option key={code} value={code}>
+                {code}
+              </option>
+            ))}
           </select>
         </div>
         <div>
@@ -191,7 +188,7 @@ export function GoalForm({
         <legend className="mb-1 text-sm font-medium text-charcoal">
           ชนิดเป้าหมาย
         </legend>
-        <div className="flex gap-4">
+        <div className="flex flex-wrap gap-x-4">
           <label className="flex min-h-11 items-center gap-2 text-base">
             <input
               type="radio"

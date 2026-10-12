@@ -1,0 +1,566 @@
+{
+  "results": [
+    {
+      "page": "home",
+      "width": 320,
+      "overflow": 0
+    },
+    {
+      "page": "plan",
+      "width": 320,
+      "overflow": 0
+    },
+    {
+      "page": "journal",
+      "width": 320,
+      "overflow": 0
+    },
+    {
+      "page": "journal-calendar",
+      "width": 320,
+      "overflow": 0
+    },
+    {
+      "page": "journal-detail",
+      "width": 320,
+      "overflow": 0
+    },
+    {
+      "page": "strength-detail",
+      "width": 320,
+      "overflow": 0
+    },
+    {
+      "page": "goals",
+      "width": 320,
+      "overflow": 0
+    },
+    {
+      "page": "goal-detail",
+      "width": 320,
+      "overflow": 0
+    },
+    {
+      "page": "progress",
+      "width": 320,
+      "overflow": 0
+    },
+    {
+      "page": "settings",
+      "width": 320,
+      "overflow": 0
+    },
+    {
+      "page": "home",
+      "width": 390,
+      "overflow": 0
+    },
+    {
+      "page": "home",
+      "check": "accessibility",
+      "violations": []
+    },
+    {
+      "page": "plan",
+      "width": 390,
+      "overflow": 0
+    },
+    {
+      "page": "plan",
+      "check": "accessibility",
+      "violations": []
+    },
+    {
+      "page": "journal",
+      "width": 390,
+      "overflow": 0
+    },
+    {
+      "page": "journal",
+      "check": "accessibility",
+      "violations": []
+    },
+    {
+      "page": "journal-calendar",
+      "width": 390,
+      "overflow": 0
+    },
+    {
+      "page": "journal-calendar",
+      "check": "accessibility",
+      "violations": []
+    },
+    {
+      "page": "journal-detail",
+      "width": 390,
+      "overflow": 0
+    },
+    {
+      "page": "journal-detail",
+      "check": "accessibility",
+      "violations": []
+    },
+    {
+      "page": "strength-detail",
+      "width": 390,
+      "overflow": 0
+    },
+    {
+      "page": "strength-detail",
+      "check": "accessibility",
+      "violations": []
+    },
+    {
+      "page": "goals",
+      "width": 390,
+      "overflow": 0
+    },
+    {
+      "page": "goals",
+      "check": "accessibility",
+      "violations": []
+    },
+    {
+      "page": "goal-detail",
+      "width": 390,
+      "overflow": 0
+    },
+    {
+      "page": "goal-detail",
+      "check": "accessibility",
+      "violations": []
+    },
+    {
+      "page": "progress",
+      "width": 390,
+      "overflow": 0
+    },
+    {
+      "page": "progress",
+      "check": "accessibility",
+      "violations": []
+    },
+    {
+      "page": "settings",
+      "width": 390,
+      "overflow": 0
+    },
+    {
+      "page": "settings",
+      "check": "accessibility",
+      "violations": []
+    },
+    {
+      "page": "home",
+      "width": 464,
+      "overflow": 0
+    },
+    {
+      "page": "plan",
+      "width": 464,
+      "overflow": 0
+    },
+    {
+      "page": "journal",
+      "width": 464,
+      "overflow": 0
+    },
+    {
+      "page": "journal-calendar",
+      "width": 464,
+      "overflow": 0
+    },
+    {
+      "page": "journal-detail",
+      "width": 464,
+      "overflow": 0
+    },
+    {
+      "page": "strength-detail",
+      "width": 464,
+      "overflow": 0
+    },
+    {
+      "page": "goals",
+      "width": 464,
+      "overflow": 0
+    },
+    {
+      "page": "goal-detail",
+      "width": 464,
+      "overflow": 0
+    },
+    {
+      "page": "progress",
+      "width": 464,
+      "overflow": 0
+    },
+    {
+      "page": "settings",
+      "width": 464,
+      "overflow": 0
+    },
+    {
+      "page": "home",
+      "width": 768,
+      "overflow": 0
+    },
+    {
+      "page": "plan",
+      "width": 768,
+      "overflow": 0
+    },
+    {
+      "page": "journal",
+      "width": 768,
+      "overflow": 0
+    },
+    {
+      "page": "journal-calendar",
+      "width": 768,
+      "overflow": 0
+    },
+    {
+      "page": "journal-detail",
+      "width": 768,
+      "overflow": 0
+    },
+    {
+      "page": "strength-detail",
+      "width": 768,
+      "overflow": 0
+    },
+    {
+      "page": "goals",
+      "width": 768,
+      "overflow": 0
+    },
+    {
+      "page": "goal-detail",
+      "width": 768,
+      "overflow": 0
+    },
+    {
+      "page": "progress",
+      "width": 768,
+      "overflow": 0
+    },
+    {
+      "page": "settings",
+      "width": 768,
+      "overflow": 0
+    },
+    {
+      "page": "home",
+      "width": 1440,
+      "overflow": 0
+    },
+    {
+      "page": "plan",
+      "width": 1440,
+      "overflow": 0
+    },
+    {
+      "page": "journal",
+      "width": 1440,
+      "overflow": 0
+    },
+    {
+      "page": "journal-calendar",
+      "width": 1440,
+      "overflow": 0
+    },
+    {
+      "page": "journal-detail",
+      "width": 1440,
+      "overflow": 0
+    },
+    {
+      "page": "strength-detail",
+      "width": 1440,
+      "overflow": 0
+    },
+    {
+      "page": "goals",
+      "width": 1440,
+      "overflow": 0
+    },
+    {
+      "page": "goal-detail",
+      "width": 1440,
+      "overflow": 0
+    },
+    {
+      "page": "progress",
+      "width": 1440,
+      "overflow": 0
+    },
+    {
+      "page": "settings",
+      "width": 1440,
+      "overflow": 0
+    },
+    {
+      "check": "running-form",
+      "width": 320,
+      "overflow": 0
+    },
+    {
+      "check": "strength-form",
+      "width": 320,
+      "overflow": 0
+    },
+    {
+      "check": "journal-filters",
+      "width": 320,
+      "overflow": 0
+    },
+    {
+      "check": "goal-form",
+      "width": 320,
+      "overflow": 0
+    },
+    {
+      "check": "progress-range",
+      "width": 320,
+      "overflow": 0
+    },
+    {
+      "check": "delete-confirmation",
+      "width": 320,
+      "overflow": 0
+    },
+    {
+      "page": "login",
+      "width": 320,
+      "overflow": 0
+    },
+    {
+      "page": "not-found",
+      "width": 320,
+      "overflow": 0
+    },
+    {
+      "page": "login",
+      "width": 390,
+      "overflow": 0
+    },
+    {
+      "page": "login",
+      "check": "accessibility",
+      "violations": []
+    },
+    {
+      "page": "not-found",
+      "width": 390,
+      "overflow": 0
+    },
+    {
+      "page": "not-found",
+      "check": "accessibility",
+      "violations": []
+    },
+    {
+      "page": "login",
+      "width": 464,
+      "overflow": 0
+    },
+    {
+      "page": "not-found",
+      "width": 464,
+      "overflow": 0
+    }
+  ],
+  "errors": [],
+  "progressVerification": {
+    "results": [
+      {
+        "page": "progress",
+        "width": 320,
+        "overflow": 0
+      },
+      {
+        "page": "progress",
+        "width": 390,
+        "overflow": 0
+      },
+      {
+        "page": "progress",
+        "check": "accessibility",
+        "violations": []
+      },
+      {
+        "page": "progress",
+        "width": 464,
+        "overflow": 0
+      },
+      {
+        "page": "progress",
+        "width": 768,
+        "overflow": 0
+      },
+      {
+        "page": "progress",
+        "width": 1440,
+        "overflow": 0
+      }
+    ],
+    "errors": []
+  },
+  "finalScreenshotVerification": {
+    "results": [
+      {
+        "page": "home",
+        "width": 390,
+        "overflow": 0
+      },
+      {
+        "page": "plan",
+        "width": 390,
+        "overflow": 0
+      },
+      {
+        "page": "journal",
+        "width": 390,
+        "overflow": 0
+      },
+      {
+        "page": "journal-calendar",
+        "width": 390,
+        "overflow": 0
+      },
+      {
+        "page": "journal-detail",
+        "width": 390,
+        "overflow": 0
+      },
+      {
+        "page": "strength-detail",
+        "width": 390,
+        "overflow": 0
+      },
+      {
+        "page": "goals",
+        "width": 390,
+        "overflow": 0
+      },
+      {
+        "page": "goal-detail",
+        "width": 390,
+        "overflow": 0
+      },
+      {
+        "page": "progress",
+        "width": 390,
+        "overflow": 0
+      },
+      {
+        "page": "settings",
+        "width": 390,
+        "overflow": 0
+      },
+      {
+        "page": "home",
+        "width": 464,
+        "overflow": 0
+      },
+      {
+        "page": "plan",
+        "width": 464,
+        "overflow": 0
+      },
+      {
+        "page": "journal",
+        "width": 464,
+        "overflow": 0
+      },
+      {
+        "page": "journal-calendar",
+        "width": 464,
+        "overflow": 0
+      },
+      {
+        "page": "journal-detail",
+        "width": 464,
+        "overflow": 0
+      },
+      {
+        "page": "strength-detail",
+        "width": 464,
+        "overflow": 0
+      },
+      {
+        "page": "goals",
+        "width": 464,
+        "overflow": 0
+      },
+      {
+        "page": "goal-detail",
+        "width": 464,
+        "overflow": 0
+      },
+      {
+        "page": "progress",
+        "width": 464,
+        "overflow": 0
+      },
+      {
+        "page": "settings",
+        "width": 464,
+        "overflow": 0
+      },
+      {
+        "page": "login",
+        "width": 320,
+        "overflow": 0
+      },
+      {
+        "page": "not-found",
+        "width": 320,
+        "overflow": 0
+      },
+      {
+        "page": "login",
+        "width": 390,
+        "overflow": 0
+      },
+      {
+        "page": "login",
+        "check": "accessibility",
+        "violations": []
+      },
+      {
+        "page": "not-found",
+        "width": 390,
+        "overflow": 0
+      },
+      {
+        "page": "not-found",
+        "check": "accessibility",
+        "violations": []
+      },
+      {
+        "page": "login",
+        "width": 464,
+        "overflow": 0
+      },
+      {
+        "page": "not-found",
+        "width": 464,
+        "overflow": 0
+      }
+    ],
+    "errors": []
+  },
+  "validation": {
+    "productionBuild": "passed",
+    "lintErrors": 0,
+    "lintWarnings": 2,
+    "mobileFeatureTests": 16,
+    "navigationTests": {
+      "mobile": 3,
+      "desktop": 3
+    },
+    "navigationRegression": "Profile stays available after navigating from the planner to the journal and settings."
+  }
+}

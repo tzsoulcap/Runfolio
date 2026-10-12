@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Check, Save } from "lucide-react";
 
 import { updateProfileAction } from "@/app/settings/actions";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,19 @@ const TIMEZONES = [
   "Pacific/Auckland",
   "UTC",
 ];
+
+const TIMEZONE_LABELS: Record<string, string> = {
+  "Asia/Bangkok": "กรุงเทพฯ",
+  "Asia/Singapore": "สิงคโปร์",
+  "Asia/Tokyo": "โตเกียว",
+  "Australia/Sydney": "ซิดนีย์",
+  "Europe/London": "ลอนดอน",
+  "Europe/Paris": "ปารีส",
+  "America/New_York": "นิวยอร์ก",
+  "America/Los_Angeles": "ลอสแอนเจลิส",
+  "Pacific/Auckland": "โอ๊คแลนด์",
+  UTC: "UTC",
+};
 
 function useOnline() {
   const [online, setOnline] = useState(
@@ -60,7 +74,9 @@ export function SettingsForm({
     setSaved(false);
     if (!online || !navigator.onLine) {
       // §17 Offline: say so, keep the draft, never show success.
-      setError("ออฟไลน์อยู่ บันทึกไม่ได้ ค่าที่กรอกยังอยู่ ลองใหม่เมื่อกลับมาออนไลน์");
+      setError(
+        "ออฟไลน์อยู่ บันทึกไม่ได้ ค่าที่กรอกยังอยู่ ลองใหม่เมื่อกลับมาออนไลน์",
+      );
       return;
     }
     setError(null);
@@ -118,11 +134,11 @@ export function SettingsForm({
         >
           {options.map((tz) => (
             <option key={tz} value={tz}>
-              {tz}
+              {TIMEZONE_LABELS[tz] ? `${TIMEZONE_LABELS[tz]} · ${tz}` : tz}
             </option>
           ))}
         </select>
-        <p className="mt-1 text-sm text-muted">
+        <p className="mt-2 text-xs leading-relaxed text-muted">
           เปลี่ยนเขตเวลาแล้ววันที่ของแผนและผลเดิมไม่เลื่อน
         </p>
       </div>
@@ -132,12 +148,17 @@ export function SettingsForm({
         </div>
       )}
       {saved && !error && (
-        <p role="status" className="mt-4 text-sm text-charcoal">
+        <p
+          role="status"
+          className="mt-3 flex items-center gap-2 rounded-button bg-lime-soft p-3 text-sm text-forest"
+        >
+          <Check className="size-4" aria-hidden />
           บันทึกโปรไฟล์แล้ว
         </p>
       )}
       <div className="mt-4">
-        <Button type="submit" disabled={saving}>
+        <Button type="submit" disabled={saving} className="w-full text-sm">
+          <Save aria-hidden />
           {saving ? "กำลังบันทึก…" : "บันทึกโปรไฟล์"}
         </Button>
       </div>

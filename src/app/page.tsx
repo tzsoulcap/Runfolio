@@ -14,7 +14,7 @@ import { getPrimaryGoal } from "@/lib/services/goals";
 import { listLogs, listLogsInRange } from "@/lib/services/journal";
 import { listWeek } from "@/lib/services/planner";
 import { getOwnProfile } from "@/lib/services/profile";
-import { formatDateTh, greetingTh, weekdayTh } from "@/lib/format";
+import { weekdayTh } from "@/lib/format";
 import { TodayHero } from "@/features/home/today-hero";
 import {
   GoalCard,
@@ -29,16 +29,6 @@ function HomeFallback() {
       <h1 className="text-3xl font-semibold sm:text-4xl">วันนี้</h1>
       <p className="mt-2 text-base text-muted">กำลังโหลดวันนี้…</p>
     </div>
-  );
-}
-
-function hourInTimeZone(tz: string, now: Date = new Date()): number {
-  return Number(
-    new Intl.DateTimeFormat("en-US", {
-      timeZone: tz,
-      hour: "numeric",
-      hourCycle: "h23",
-    }).format(now),
   );
 }
 
@@ -82,6 +72,7 @@ async function HomeContent() {
     title: item.title,
     activityType: item.activityType,
     runningTarget: item.runningTarget,
+    intensityTarget: item.intensityTarget,
     plannedStartTime: item.plannedStartTime,
     note: item.note,
     planState: item.planState,
@@ -99,29 +90,21 @@ async function HomeContent() {
 
   const displayName = profile?.displayName?.trim() || "นักวิ่ง";
   return (
-    <div>
-      <p className="text-base text-muted">
-        วัน{weekdayTh(today)}ที่ {formatDateTh(today)} · {greetingTh(hourInTimeZone(tz))}
+    <div className="mx-auto -mt-1 max-w-[640px]">
+      <p className="px-0.5 text-[clamp(14px,3.5vw,16px)] text-muted">
+        {weekdayTh(today)} {new Intl.DateTimeFormat("th-TH", { day: "numeric", month: "long", timeZone: "UTC" }).format(new Date(`${today}T00:00:00Z`))}
       </p>
-      <h1 className="mt-1 text-3xl font-bold tracking-tight sm:text-4xl">
+      <h1 className="mt-0.5 px-0.5 text-[clamp(28px,7.3vw,32px)] leading-tight font-bold tracking-tight">
         สวัสดี {displayName}
       </h1>
-      <div className="mt-4 grid items-start gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 lg:row-start-1">
-          <TodayHero state={state} today={today} />
-        </div>
-        <div className="lg:col-span-2 lg:row-start-2">
+      <div className="mt-2.5 space-y-3.5">
+        <TodayHero state={state} today={today} />
+        <div className="space-y-3 pt-1">
           <WeekStrip days={strip} />
-        </div>
-        <div className="lg:col-span-3 lg:row-start-3">
           <WeekSummaryCard summary={summary} />
         </div>
-        <div className="lg:col-start-3 lg:row-start-1">
-          <GoalCard goal={goal} today={today} />
-        </div>
-        <div className="lg:col-start-3 lg:row-start-2">
-          <LatestJournal entries={latest} />
-        </div>
+        <GoalCard goal={goal} today={today} />
+        <LatestJournal entries={latest} />
       </div>
     </div>
   );

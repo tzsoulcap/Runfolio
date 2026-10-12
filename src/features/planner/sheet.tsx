@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { X } from "lucide-react";
 
 // Bottom sheet on mobile, centered dialog from sm up.
 export function Sheet({
@@ -33,16 +34,16 @@ export function Sheet({
         onClick={onClose}
         className="absolute inset-0 h-full w-full cursor-default bg-charcoal/40"
       />
-      <div className="absolute inset-x-0 bottom-0 max-h-[85dvh] overflow-y-auto rounded-t-card border-t border-line bg-paper p-4 pb-8 sm:inset-0 sm:m-auto sm:h-fit sm:max-h-[85dvh] sm:max-w-lg sm:rounded-card sm:border sm:p-6">
+      <div className="absolute inset-x-0 bottom-0 max-h-[90dvh] overflow-y-auto rounded-t-[24px] border-t border-line bg-paper p-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:inset-0 sm:m-auto sm:h-fit sm:max-h-[85dvh] sm:max-w-lg sm:rounded-[20px] sm:border sm:p-5">
         <div className="mb-3 flex items-start justify-between gap-3">
-          <h2 className="text-xl font-semibold">{title}</h2>
+          <h2 className="section-title pt-2">{title}</h2>
           <button
             type="button"
             onClick={onClose}
             aria-label={`ปิด${title}`}
-            className="inline-flex size-11 shrink-0 items-center justify-center rounded-button border border-line bg-paper text-xl text-charcoal"
+            className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-ivory text-muted"
           >
-            ×
+            <X className="size-5" aria-hidden />
           </button>
         </div>
         {children}

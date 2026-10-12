@@ -16,8 +16,7 @@ const buttonVariants = cva(
       },
       size: {
         default: "h-11 px-5",
-        // Below the 44px touch minimum: dense pointer UIs only, never a touch target.
-        sm: "h-9 px-4 text-sm",
+        sm: "min-h-11 px-3 text-sm",
         lg: "h-12 px-6",
         icon: "size-11",
       },

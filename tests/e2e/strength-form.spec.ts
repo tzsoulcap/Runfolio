@@ -25,6 +25,7 @@ async function loginFresh(
 
 async function openStrengthForm(page: Page) {
   const section = page.locator(`#day-${todayBkk}`);
+  await section.getByRole("button", { name: `เพิ่มการซ้อมวันที่ ${todayBkk}`, exact: true }).click();
   await section.getByRole("button", { name: "เพิ่ม Strength" }).click();
   return section;
 }
@@ -63,6 +64,8 @@ test("strength session saves with reorder and validates sets", async ({
   await section.getByLabel("หมายเหตุ", { exact: true }).fill(note);
   await section.getByRole("button", { name: "เพิ่มแผน Strength" }).click();
   const row = section.locator("article", { hasText: note });
+  await row.getByRole("button", { name: "ตัวเลือก" }).click();
+  await row.getByRole("menuitem", { name: "ดูรายละเอียดแผน" }).click();
   const lines = row.locator("ol li");
   await expect(lines.nth(0)).toContainText("แพลงก์");
   await expect(lines.nth(0)).toContainText("3 เซ็ต × 45 วินาที");
@@ -91,6 +94,8 @@ test("alternating lunges count total steps, blank load stays unrecorded", async 
   await section.getByLabel("หมายเหตุ", { exact: true }).fill(note);
   await section.getByRole("button", { name: "เพิ่มแผน Strength" }).click();
   const row = section.locator("article", { hasText: note });
+  await row.getByRole("button", { name: "ตัวเลือก" }).click();
+  await row.getByRole("menuitem", { name: "ดูรายละเอียดแผน" }).click();
   await expect(row).toContainText("3 เซ็ต × 20 ก้าวรวมสลับข้าง");
   await expect(row).not.toContainText("น้ำหนักตัว");
 });

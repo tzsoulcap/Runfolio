@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { MoreHorizontal } from "lucide-react";
 
 import { CopyWeekSheet } from "./copy-week-sheet";
 import { SaveTemplateSheet } from "./save-template-sheet";
@@ -20,15 +21,15 @@ export function PlanWeekMenu({ monday }: { monday: string }) {
   }
 
   return (
-    <div className="relative">
+    <div className="fixed top-2 right-4 z-40 lg:relative lg:top-auto lg:right-auto lg:z-auto">
       <button
         type="button"
         aria-expanded={open}
         aria-label="เมนูสัปดาห์"
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex size-11 items-center justify-center rounded-button border border-line bg-paper text-xl font-bold text-charcoal"
+        className="inline-flex size-11 items-center justify-center rounded-button text-xl text-charcoal hover:bg-forest/5"
       >
-        ⋯
+        <MoreHorizontal className="size-5" aria-hidden />
       </button>
       {open && (
         <div

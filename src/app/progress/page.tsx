@@ -2,6 +2,8 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
+import { ChartColumn, Table2 } from "lucide-react";
+import { Disclosure } from "@/components/ui/disclosure";
 
 import { getSessionUserId } from "@/lib/auth/session";
 import {
@@ -9,14 +11,11 @@ import {
   formatDayMonth,
   formatDistanceM,
   formatHMS,
+  formatKm,
 } from "@/lib/format";
 import { formatPace, paceLabelFor } from "@/lib/domain/metrics";
 import { completionText } from "@/lib/domain/progress";
-import {
-  DateOnlySchema,
-  mondayOf,
-  todayInTimeZone,
-} from "@/lib/domain/week";
+import { DateOnlySchema, mondayOf, todayInTimeZone } from "@/lib/domain/week";
 import { getProgress } from "@/lib/services/progress";
 import { listRunningMasters } from "@/lib/services/planner";
 import { getOwnProfile } from "@/lib/services/profile";
@@ -30,9 +29,9 @@ function first(value: string | string[] | undefined): string | undefined {
 
 function ProgressFallback() {
   return (
-    <div>
-      <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">สถิติ</h1>
-      <p className="mt-2 text-base text-muted">กำลังโหลดสถิติ…</p>
+    <div className="app-page">
+      <h1 className="page-title">สถิติ</h1>
+      <p className="mt-2 text-sm text-muted">กำลังโหลดสถิติ…</p>
     </div>
   );
 }
@@ -54,17 +53,17 @@ function ProportionList({
   const share = (n: number) =>
     total > 0 ? ` (${Math.round((n / total) * 100)}%)` : "";
   return (
-    <ul className="mt-2 space-y-1 text-base text-muted">
-      <li>
+    <ul className="mt-3 grid grid-cols-2 gap-2 text-xs leading-relaxed text-muted">
+      <li className="rounded-button bg-[#f6f8f0] p-2.5">
         สำเร็จ {done} เซสชัน{share(done)}
       </li>
-      <li>
+      <li className="rounded-button bg-clay/50 p-2.5">
         ทำบางส่วน {partial} เซสชัน{share(partial)}
       </li>
-      <li>
+      <li className="rounded-button bg-[#eef1f3] p-2.5">
         ข้าม {skipped} เซสชัน{share(skipped)}
       </li>
-      <li>
+      <li className="rounded-button bg-[#f6f4ef] p-2.5">
         พลาด {missed} เซสชัน{share(missed)}
       </li>
     </ul>
@@ -84,18 +83,18 @@ function PresetPill({
     <Link
       href={href}
       aria-current={current ? "page" : undefined}
-      className={`inline-flex h-11 items-center rounded-full px-5 text-base font-medium ${
-        current
-          ? "bg-forest text-ivory"
-          : "border border-line bg-paper text-charcoal"
-      }`}
+      className="segmented-link"
     >
       {label}
     </Link>
   );
 }
 
-async function ProgressContent({ searchParams }: { searchParams: SearchParams }) {
+async function ProgressContent({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
   await connection();
   const userId = await getSessionUserId();
   if (!userId) {
@@ -131,10 +130,7 @@ async function ProgressContent({ searchParams }: { searchParams: SearchParams })
     summary.runningActualM,
     summary.runningActualSec,
   );
-  const maxBucket = Math.max(
-    1,
-    ...progress.buckets.map((b) => b.distanceM),
-  );
+  const maxBucket = Math.max(1, ...progress.buckets.map((b) => b.distanceM));
   const qs = (extra: Record<string, string | undefined>) => {
     const sp = new URLSearchParams();
     if (preset) sp.set("preset", preset);
@@ -151,13 +147,17 @@ async function ProgressContent({ searchParams }: { searchParams: SearchParams })
     summary.estimatedStructuredM > 0 || summary.timeBasedItems > 0;
 
   return (
-    <div>
-      <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">สถิติ</h1>
-      <p className="mt-1 text-base text-muted">
+    <div className="app-page">
+      <h1 className="page-title">สถิติ</h1>
+      <p className="mt-1 text-sm text-muted">
         {formatDateTh(progress.effectiveFrom)} – {formatDateTh(progress.to)}
       </p>
 
-      <div className="mt-4 flex flex-wrap gap-2" role="group" aria-label="ช่วงเวลา">
+      <div
+        className="segmented-control mt-4"
+        role="group"
+        aria-label="ช่วงเวลา"
+      >
         <PresetPill
           href="/progress?preset=week"
           current={preset !== "month" && !rawFrom}
@@ -170,174 +170,153 @@ async function ProgressContent({ searchParams }: { searchParams: SearchParams })
         />
       </div>
 
-      <form
-        method="get"
-        action="/progress"
-        className="mt-4 rounded-card border border-line bg-paper p-4"
-        aria-label="ช่วงวันที่กำหนดเอง"
-      >
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className={labelCls} htmlFor="progress-from">
-              ตั้งแต่
-            </label>
-            <input
-              id="progress-from"
-              name="from"
-              type="date"
-              max={today}
-              defaultValue={from}
-              className={inputCls}
-            />
-          </div>
-          <div>
-            <label className={labelCls} htmlFor="progress-to">
-              ถึง
-            </label>
-            <input
-              id="progress-to"
-              name="to"
-              type="date"
-              max={today}
-              defaultValue={to}
-              className={inputCls}
-            />
-          </div>
-        </div>
-        <div className="mt-3">
-          <button
-            type="submit"
-            className="inline-flex h-11 items-center rounded-button bg-forest px-5 text-base font-medium text-ivory"
-          >
-            ดูช่วงนี้
-          </button>
-        </div>
-      </form>
+      <div className="mt-3">
+        <Disclosure
+          key={`${from}-${to}`}
+          title="กำหนดช่วงวันที่"
+          open={Boolean(rawFrom || rawTo)}
+        >
+          <form method="get" action="/progress" aria-label="ช่วงวันที่กำหนดเอง">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className={labelCls} htmlFor="progress-from">
+                  ตั้งแต่
+                </label>
+                <input
+                  id="progress-from"
+                  name="from"
+                  type="date"
+                  max={today}
+                  defaultValue={from}
+                  className={inputCls}
+                />
+              </div>
+              <div>
+                <label className={labelCls} htmlFor="progress-to">
+                  ถึง
+                </label>
+                <input
+                  id="progress-to"
+                  name="to"
+                  type="date"
+                  max={today}
+                  defaultValue={to}
+                  className={inputCls}
+                />
+              </div>
+            </div>
+            <div className="mt-3">
+              <button
+                type="submit"
+                className="inline-flex h-11 items-center rounded-button bg-forest px-5 text-base font-medium text-ivory"
+              >
+                ดูช่วงนี้
+              </button>
+            </div>
+          </form>
+        </Disclosure>
+      </div>
 
-      <dl className="mt-4 grid grid-cols-2 gap-2 rounded-card border border-line bg-paper p-4 text-center sm:grid-cols-3">
-        <div>
-          <dt className="text-sm text-muted">ระยะวิ่งสะสม</dt>
-          <dd className="text-xl font-semibold">
-            {formatDistanceM(summary.runningActualM)}
+      <dl className="today-card mt-4 grid grid-cols-2 gap-x-4 gap-y-3 rounded-[20px] p-4 text-paper">
+        <div className="col-span-full">
+          <dt className="flex items-center justify-between text-sm text-paper/85">
+            ระยะวิ่งสะสม
+            <ChartColumn className="size-6 text-lime" aria-hidden />
+          </dt>
+          <dd className="mt-1 flex flex-wrap items-baseline gap-2 leading-none">
+            <span className="min-w-0 text-[52px] font-semibold tracking-tight break-all">
+              {formatKm(summary.runningActualM)}
+            </span>{" "}
+            <span className="text-2xl font-medium">km</span>
           </dd>
         </div>
-        <div>
-          <dt className="text-sm text-muted">เวลาวิ่งรวม</dt>
-          <dd className="text-xl font-semibold">
+        <div className="border-t border-paper/25 pt-3">
+          <dt className="text-xs text-paper/85">เวลาวิ่งรวม</dt>
+          <dd className="mt-1 text-xl font-medium">
             {formatHMS(summary.runningActualSec)}
           </dd>
         </div>
-        <div>
-          <dt className="text-sm text-muted">เพซเฉลี่ย</dt>
-          <dd className="text-xl font-semibold">
+        <div className="border-t border-paper/25 pt-3">
+          <dt className="text-xs text-paper/85">เพซเฉลี่ย</dt>
+          <dd className="mt-1 text-xl font-medium">
             {avgPace !== null ? (
               `${avgPace}/km`
             ) : (
               <>
                 –{" "}
-                <span className="text-sm font-normal text-muted">
+                <span className="text-xs font-normal text-paper/85">
                   ยังไม่มีข้อมูล
                 </span>
               </>
             )}
           </dd>
         </div>
-        <div>
-          <dt className="text-sm text-muted">เซสชันวิ่ง</dt>
-          <dd className="text-xl font-semibold">{progress.runningSessions}</dd>
+      </dl>
+
+      <dl className="mt-3 grid grid-cols-3 rounded-[14px] bg-[#f6f4ef] p-2.5 text-center">
+        <div className="min-w-0">
+          <dt className="text-xs text-muted">เซสชันวิ่ง</dt>
+          <dd className="mt-1 text-2xl font-semibold">
+            {progress.runningSessions}
+          </dd>
         </div>
-        <div>
-          <dt className="text-sm text-muted">เซสชันเวท</dt>
-          <dd className="text-xl font-semibold">{progress.strengthSessions}</dd>
+        <div className="min-w-0 border-x border-line">
+          <dt className="text-xs text-muted">เซสชันเวท</dt>
+          <dd className="mt-1 text-2xl font-semibold">
+            {progress.strengthSessions}
+          </dd>
         </div>
-        <div>
-          <dt className="text-sm text-muted">วันซ้อม</dt>
-          <dd className="text-xl font-semibold">{progress.trainingDaysCount}</dd>
+        <div className="min-w-0">
+          <dt className="text-xs text-muted">วันซ้อม</dt>
+          <dd className="mt-1 text-2xl font-semibold">
+            {progress.trainingDaysCount}
+          </dd>
         </div>
       </dl>
 
-      <section
-        aria-label="ความต่อเนื่องตามแผน"
-        className="mt-4 rounded-card border border-line bg-paper p-4"
-      >
-        <h2 className="text-xl font-semibold">ความต่อเนื่องตามแผน</h2>
-        <p className="mt-2 text-base">{completionText(summary)}</p>
-        <ProportionList
-          done={summary.doneItems}
-          partial={summary.partialItems}
-          skipped={summary.skippedItems}
-          missed={progress.missed}
-        />
-        <p className="mt-2 text-sm text-muted">
-          ผลจริงนับตามวันที่ซ้อม ความสำเร็จอ้างตามสัปดาห์ของแผน
-          เซสชันที่ข้ามออกจากตัวหาร
-        </p>
-      </section>
-
-      <section
-        aria-label="แผนระยะเทียบผลจริง"
-        className="mt-4 rounded-card border border-line bg-paper p-4"
-      >
-        <h2 className="text-xl font-semibold">แผนระยะเทียบผลจริง</h2>
-        <p className="mt-2 text-base">
-          วิ่งแล้ว {formatDistanceM(summary.runningActualM)} / แผนระยะที่ระบุ{" "}
-          {summary.plannedDistanceM > 0
-            ? formatDistanceM(summary.plannedDistanceM)
-            : "–"}
-          {summary.timeBasedItems > 0 &&
-            ` + ${summary.timeBasedItems} เซสชันแบบเวลา`}
-          {summary.estimatedStructuredM > 0 &&
-            ` + ประมาณ ${formatDistanceM(summary.estimatedStructuredM)}`}
-        </p>
-        {incompletePlan && (
-          <p className="mt-1 text-sm text-muted">
-            มีแผนที่ระยะไม่ครบ จึงไม่แสดงแถบเทียบระยะ
-          </p>
-        )}
-      </section>
-
-      <section
-        aria-label="ระยะทางรายสัปดาห์"
-        className="mt-4 rounded-card border border-line bg-paper p-4"
-      >
+      <section aria-label="ระยะทางรายสัปดาห์" className="surface mt-4">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-xl font-semibold">ระยะทางรายสัปดาห์</h2>
+          <h2 className="section-title">ระยะทางรายสัปดาห์</h2>
           <Link
             href={qs({ chart: chart === "bar" ? "table" : undefined })}
-            className="inline-flex min-h-11 items-center text-base font-medium text-forest underline underline-offset-4"
+            className="inline-flex min-h-11 shrink-0 items-center gap-1 text-xs font-medium text-forest"
           >
+            {chart === "bar" ? (
+              <Table2 className="size-4" aria-hidden />
+            ) : (
+              <ChartColumn className="size-4" aria-hidden />
+            )}
             {chart === "bar" ? "ดูแบบตาราง" : "ดูแบบกราฟ"}
           </Link>
         </div>
         {chart === "bar" ? (
           <ol
             aria-label="กราฟระยะทาง 10 สัปดาห์"
-            className="mt-3 flex h-40 items-end gap-1"
+            className="mt-3 flex h-36 items-end gap-1 sm:h-44"
           >
             {progress.buckets.map((b) => {
-              const pct =
-                b.distanceM > 0
-                  ? Math.max(4, Math.round((b.distanceM / maxBucket) * 100))
-                  : 0;
+              const pct = b.distanceM > 0 ? (b.distanceM / maxBucket) * 100 : 0;
               return (
                 <li
                   key={b.monday}
-                  className="flex h-full min-w-0 flex-1 flex-col items-center justify-end"
+                  className="flex h-full min-w-0 flex-1 flex-col items-center"
                   title={`${formatDateTh(b.monday)}: ${formatDistanceM(b.distanceM)}`}
                 >
-                  <span className="text-xs text-muted">
+                  <span className="flex h-7 w-full shrink-0 items-end justify-center text-center text-[10px] leading-tight break-words text-muted">
                     {b.distanceM > 0
                       ? (b.distanceM / 1000).toLocaleString("en-US", {
                           maximumFractionDigits: 1,
                         })
                       : ""}
                   </span>
-                  <span
-                    aria-hidden="true"
-                    className="mt-1 w-full max-w-8 rounded-t-full bg-forest"
-                    style={{ height: `${pct}%` }}
-                  />
-                  <span className="mt-1 text-xs text-muted">
+                  <span className="flex w-full min-h-0 flex-1 items-end justify-center border-b border-line">
+                    <span
+                      aria-hidden="true"
+                      className="w-full max-w-6 rounded-t-[5px] bg-forest"
+                      style={{ height: `${pct}%` }}
+                    />
+                  </span>
+                  <span className="mt-2 text-[10px] text-muted">
                     {formatDayMonth(b.monday)}
                   </span>
                 </li>
@@ -345,7 +324,7 @@ async function ProgressContent({ searchParams }: { searchParams: SearchParams })
             })}
           </ol>
         ) : (
-          <table className="mt-3 w-full text-base">
+          <table className="compact-table mt-3">
             <thead>
               <tr className="text-left text-sm text-muted">
                 <th scope="col" className="py-1 pr-2 font-medium">
@@ -370,13 +349,65 @@ async function ProgressContent({ searchParams }: { searchParams: SearchParams })
         )}
       </section>
 
+      <section aria-label="ความต่อเนื่องตามแผน" className="surface mt-4">
+        <h2 className="section-title">ความต่อเนื่องตามแผน</h2>
+        <p className="mt-2 text-sm font-medium text-forest">
+          {completionText(summary)}
+        </p>
+        {summary.totalItems > 0 && (
+          <div
+            role="progressbar"
+            aria-label="เซสชันที่สำเร็จเทียบแผน"
+            aria-valuenow={Math.round(
+              (summary.doneItems / summary.totalItems) * 100,
+            )}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            className="mt-3 h-2 overflow-hidden rounded-full bg-ivory"
+          >
+            <div
+              className="h-full rounded-full bg-forest"
+              style={{
+                width: `${(summary.doneItems / summary.totalItems) * 100}%`,
+              }}
+            />
+          </div>
+        )}
+        <ProportionList
+          done={summary.doneItems}
+          partial={summary.partialItems}
+          skipped={summary.skippedItems}
+          missed={progress.missed}
+        />
+        <p className="mt-3 text-xs leading-relaxed text-muted">
+          ผลจริงนับตามวันที่ซ้อม ความสำเร็จอ้างตามสัปดาห์ของแผน
+          เซสชันที่ข้ามออกจากตัวหาร
+        </p>
+      </section>
+
+      <section aria-label="แผนระยะเทียบผลจริง" className="surface mt-4">
+        <h2 className="section-title">แผนระยะเทียบผลจริง</h2>
+        <p className="mt-2 text-sm leading-relaxed">
+          วิ่งแล้ว {formatDistanceM(summary.runningActualM)} / แผนระยะที่ระบุ{" "}
+          {summary.plannedDistanceM > 0
+            ? formatDistanceM(summary.plannedDistanceM)
+            : "–"}
+          {summary.timeBasedItems > 0 &&
+            ` + ${summary.timeBasedItems} เซสชันแบบเวลา`}
+          {summary.estimatedStructuredM > 0 &&
+            ` + ประมาณ ${formatDistanceM(summary.estimatedStructuredM)}`}
+        </p>
+        {incompletePlan && (
+          <p className="mt-2 text-xs text-muted">
+            มีแผนที่ระยะไม่ครบ จึงไม่แสดงแถบเทียบระยะ
+          </p>
+        )}
+      </section>
+
       {progress.paceRows.length > 0 && (
-        <section
-          aria-label="เพซแยกตามประเภท"
-          className="mt-4 rounded-card border border-line bg-paper p-4"
-        >
-          <h2 className="text-xl font-semibold">เพซแยกตามประเภท</h2>
-          <table className="mt-3 w-full text-base">
+        <section aria-label="เพซแยกตามประเภท" className="surface mt-4">
+          <h2 className="section-title">เพซแยกตามประเภท</h2>
+          <table className="compact-table mt-3">
             <thead>
               <tr className="text-left text-sm text-muted">
                 <th scope="col" className="py-1 pr-2 font-medium">
@@ -414,7 +445,7 @@ async function ProgressContent({ searchParams }: { searchParams: SearchParams })
               ))}
             </tbody>
           </table>
-          <p className="mt-2 text-sm text-muted">
+          <p className="mt-3 text-xs leading-relaxed text-muted">
             เพซรวมจากเวลาที่เคลื่อนไหวทั้งหมดต่อประเภท ไม่เทียบข้ามประเภท
           </p>
         </section>

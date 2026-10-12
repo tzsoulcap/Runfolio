@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Noto_Sans_Thai } from "next/font/google";
 import { Suspense, type ReactNode } from "react";
+import { connection } from "next/server";
 import "./globals.css";
 import { BottomNav, Header, Sidebar } from "@/components/nav";
 import { getSessionUserId } from "@/lib/auth/session";
@@ -23,6 +24,7 @@ export const metadata: Metadata = {
 };
 
 async function AvatarHeader() {
+  await connection();
   const userId = await getSessionUserId();
   const profile = userId ? await getOwnProfile(userId) : null;
   const name = profile?.displayName?.trim() ?? "";
@@ -43,7 +45,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <Suspense fallback={<Header initial={null} />}>
             <AvatarHeader />
           </Suspense>
-          <main className="mx-auto w-full max-w-[1180px] px-4 pt-4 pb-28 sm:px-5 lg:pt-6 lg:pb-12">
+          <main className="mx-auto w-full max-w-[1180px] px-4 pt-1 pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:px-5 lg:pt-6 lg:pb-12">
             {children}
           </main>
           <Suspense fallback={null}>

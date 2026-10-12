@@ -79,7 +79,8 @@ const FormSchema = z
       if (!(Number(v.distanceKm) > 0))
         issue(["distanceKm"], "ใส่ระยะทางมากกว่า 0");
     } else if (v.targetKind === "DURATION") {
-      if (!(Number(v.durationMin) > 0)) issue(["durationMin"], "ใส่เวลามากกว่า 0");
+      if (!(Number(v.durationMin) > 0))
+        issue(["durationMin"], "ใส่เวลามากกว่า 0");
     }
     if (
       v.estimatedKm !== undefined &&
@@ -151,24 +152,28 @@ export function AddPlanForm({
   goals,
   blockers,
   revision,
+  initiallyOpen = false,
+  onClose,
 }: {
   date: string;
   masters: MasterOption[];
   goals: GoalOption[];
   blockers: RestBlockers;
   revision: number;
+  initiallyOpen?: boolean;
+  onClose?: () => void;
 }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(initiallyOpen);
   const [serverError, setServerError] = useState<string | null>(null);
   const [blocks, setBlocks] = useState<BlockState[]>([blankBlock()]);
   const [blockErrors, setBlockErrors] = useState<string[]>([]);
   const initial = masters.find((m) => m.code === "EASY_RUN") ?? masters[0];
   const initialTarget = targetDefaults(
-    initial ?? { defaultTarget: null } as MasterOption,
+    initial ?? ({ defaultTarget: null } as MasterOption),
   );
   const initialIntensity = intensityDefaults(
-    initial ?? { zoneMin: null, zoneMax: null } as MasterOption,
+    initial ?? ({ zoneMin: null, zoneMax: null } as MasterOption),
   );
 
   const form = useForm<FormInput, unknown, Values>({
@@ -258,6 +263,7 @@ export function AddPlanForm({
         return;
       }
       setOpen(false);
+      onClose?.();
       return;
     }
     let runningTarget: RunningTarget | undefined;
@@ -305,6 +311,7 @@ export function AddPlanForm({
       return;
     }
     setOpen(false);
+    onClose?.();
   }
 
   if (!open) {
@@ -324,7 +331,7 @@ export function AddPlanForm({
   return (
     <form
       onSubmit={form.handleSubmit(onSubmit)}
-      className="w-full rounded-card border border-line bg-paper p-4"
+      className="form-panel w-full"
       aria-label={`ฟอร์มเพิ่มแผนวันที่ ${date}`}
     >
       <div>
@@ -479,7 +486,9 @@ export function AddPlanForm({
                 className={inputCls}
                 {...form.register("durationMin", { valueAsNumber: true })}
               />
-              <FieldError message={form.formState.errors.durationMin?.message} />
+              <FieldError
+                message={form.formState.errors.durationMin?.message}
+              />
             </div>
           )}
 
@@ -612,7 +621,9 @@ export function AddPlanForm({
                 className={inputCls}
                 {...form.register("effortLabel")}
               />
-              <FieldError message={form.formState.errors.effortLabel?.message} />
+              <FieldError
+                message={form.formState.errors.effortLabel?.message}
+              />
             </div>
           )}
         </fieldset>
@@ -628,9 +639,7 @@ export function AddPlanForm({
           className={inputCls}
           {...form.register("plannedStartTime")}
         />
-        <FieldError
-          message={form.formState.errors.plannedStartTime?.message}
-        />
+        <FieldError message={form.formState.errors.plannedStartTime?.message} />
       </div>
 
       <div className="mt-3">
@@ -666,8 +675,7 @@ export function AddPlanForm({
         <Button
           type="submit"
           disabled={
-            form.formState.isSubmitting ||
-            (isRest && blockers.loggedCount > 0)
+            form.formState.isSubmitting || (isRest && blockers.loggedCount > 0)
           }
         >
           {form.formState.isSubmitting
@@ -679,7 +687,10 @@ export function AddPlanForm({
         <Button
           type="button"
           variant="ghost"
-          onClick={() => setOpen(false)}
+          onClick={() => {
+            setOpen(false);
+            onClose?.();
+          }}
           disabled={form.formState.isSubmitting}
         >
           ยกเลิก

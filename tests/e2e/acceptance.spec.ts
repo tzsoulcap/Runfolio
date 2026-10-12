@@ -49,11 +49,14 @@ async function addRun(page: Page, date: string, note: string) {
 
 async function addStrength(page: Page, date: string, note: string) {
   const section = page.locator(`#day-${date}`);
+  await section.getByRole("button", { name: `เพิ่มการซ้อมวันที่ ${date}`, exact: true }).click();
   await section.getByRole("button", { name: "เพิ่ม Strength" }).click();
   await section.getByRole("button", { name: "เพิ่มท่า" }).click();
   await section.getByLabel("หมายเหตุ", { exact: true }).fill(note);
   await section.getByRole("button", { name: "เพิ่มแผน Strength" }).click();
   const row = section.locator("article", { hasText: note });
+  await row.getByRole("button", { name: "ตัวเลือก" }).click();
+  await row.getByRole("menuitem", { name: "ดูรายละเอียดแผน" }).click();
   await expect(row).toContainText("บัลแกเรียนสปลิตสควอต");
   return row;
 }

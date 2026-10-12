@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
+import { ChevronLeft, Target } from "lucide-react";
 
 import { getSessionUserId } from "@/lib/auth/session";
 import {
@@ -19,10 +20,7 @@ import { targetPaceSecPerKm } from "@/lib/domain/goal";
 import { formatPace } from "@/lib/domain/metrics";
 import { todayInTimeZone } from "@/lib/domain/week";
 import { ServiceError } from "@/lib/services/errors";
-import {
-  getGoal,
-  listResultCandidates,
-} from "@/lib/services/goals";
+import { getGoal, listResultCandidates } from "@/lib/services/goals";
 import { getOwnProfile } from "@/lib/services/profile";
 import { PagePlaceholder } from "@/components/page-placeholder";
 import { GoalForm, type GoalFormInitial } from "@/features/goals/goal-form";
@@ -79,44 +77,48 @@ async function GoalDetail({ id }: { id: string }) {
   };
 
   return (
-    <div>
+    <div className="app-page">
       <Link
         href="/goals"
-        className="inline-flex min-h-11 items-center text-base font-medium text-forest underline underline-offset-4"
+        className="-ml-1 inline-flex min-h-11 items-center gap-1 text-sm font-medium text-muted"
       >
-        ‹ เป้าหมายทั้งหมด
+        <ChevronLeft className="size-5" aria-hidden />
+        เป้าหมายทั้งหมด
       </Link>
-      <h1 className="mt-1 text-3xl font-semibold sm:text-4xl">
+      <h1 className="page-title mt-1">
         {name} {goal.distanceCode}
       </h1>
-      <p className="mt-1 text-base text-muted">
+      <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted">
         {GOAL_TYPE_TH[goal.goalType] ?? goal.goalType}
-        <span className="ml-2 rounded-full border border-line px-2 py-0.5 text-sm">
+        <span className="rounded-full bg-ivory px-2 py-0.5 text-xs">
           {GOAL_STATUS_TH[goal.status] ?? goal.status}
         </span>
         {goal.isPrimary && goal.status === "ACTIVE" && (
-          <span className="ml-2 rounded-full bg-forest px-2 py-0.5 text-sm text-ivory">
+          <span className="rounded-full bg-lime-soft px-2 py-0.5 text-xs text-forest">
             หลัก
           </span>
         )}
       </p>
 
-      <dl className="mt-4 grid grid-cols-3 gap-2 rounded-card border border-line bg-paper p-4 text-center">
-        <div>
-          <dt className="text-sm text-muted">ระยะทาง</dt>
-          <dd className="text-xl font-semibold">
+      <dl className="today-card mt-4 grid grid-cols-2 gap-x-4 gap-y-4 rounded-[20px] p-5 text-paper">
+        <div className="col-span-full">
+          <dt className="flex items-center justify-between text-sm text-paper/85">
+            ระยะทาง
+            <Target className="size-6 text-lime" aria-hidden />
+          </dt>
+          <dd className="mt-1 text-[44px] leading-tight font-semibold tracking-tight">
             {formatDistanceM(goal.distanceM)}
           </dd>
         </div>
-        <div>
-          <dt className="text-sm text-muted">วันแข่ง</dt>
-          <dd className="text-xl font-semibold">
+        <div className="border-t border-paper/25 pt-3">
+          <dt className="text-xs text-paper/85">วันแข่ง</dt>
+          <dd className="mt-1 text-sm font-medium">
             {goal.eventDate ? formatDateTh(goal.eventDate) : "–"}
           </dd>
         </div>
-        <div>
-          <dt className="text-sm text-muted">นับถอยหลัง</dt>
-          <dd className="text-xl font-semibold">
+        <div className="border-t border-paper/25 pt-3">
+          <dt className="text-xs text-paper/85">นับถอยหลัง</dt>
+          <dd className="mt-1 text-sm font-medium text-lime">
             {goal.eventDate
               ? goalCountdownTh(countdownDays(goal.eventDate, today))
               : "–"}
@@ -125,29 +127,20 @@ async function GoalDetail({ id }: { id: string }) {
       </dl>
 
       {goal.goalType === "TARGET_TIME" && (
-        <section
-          aria-label="เวลาเป้าหมาย"
-          className="mt-4 rounded-card border border-line bg-paper p-4"
-        >
-          <h2 className="text-xl font-semibold">เวลาเป้าหมาย</h2>
-          <p className="mt-2 text-base">
-            {goal.targetTimeSec !== null
-              ? formatHMS(goal.targetTimeSec)
-              : "–"}
+        <section aria-label="เวลาเป้าหมาย" className="surface mt-4">
+          <h2 className="section-title">เวลาเป้าหมาย</h2>
+          <p className="mt-2 flex flex-wrap items-baseline gap-2 text-lg font-medium">
+            {goal.targetTimeSec !== null ? formatHMS(goal.targetTimeSec) : "–"}
             {targetPace !== null && ` · เพซ ${targetPace}/km`}
           </p>
           <p className="mt-1 text-sm text-muted">
-            เพซนี้คำนวณจากเวลาเป้าหมายที่ตั้งไว้เท่านั้น
-            ไม่ได้รับรองว่าจะทำได้
+            เพซคำนวณจากระยะทางและเวลาเป้าหมายที่คุณตั้งไว้
           </p>
         </section>
       )}
 
-      <section
-        aria-label="ผลการแข่งขัน"
-        className="mt-4 rounded-card border border-line bg-paper p-4"
-      >
-        <h2 className="text-xl font-semibold">ผลการแข่งขัน</h2>
+      <section aria-label="ผลการแข่งขัน" className="surface mt-4">
+        <h2 className="section-title">ผลการแข่งขัน</h2>
         {resultLog ? (
           <div className="mt-2">
             <Link
@@ -169,7 +162,7 @@ async function GoalDetail({ id }: { id: string }) {
           </div>
         ) : (
           <>
-            <p className="mt-2 text-base text-muted">
+            <p className="mt-2 text-sm leading-relaxed text-muted">
               ยังไม่เชื่อมผล เลือกผล Race Day ได้เอง งานซ้อมไม่ต้องผูก
             </p>
             <LinkResultForm goalId={goal.id} candidates={candidates} />
@@ -178,11 +171,8 @@ async function GoalDetail({ id }: { id: string }) {
       </section>
 
       {goal.status === "ACTIVE" && (
-        <section
-          aria-label="จัดการเป้าหมาย"
-          className="mt-4 rounded-card border border-line bg-paper p-4"
-        >
-          <h2 className="text-xl font-semibold">จัดการเป้าหมาย</h2>
+        <section aria-label="จัดการเป้าหมาย" className="surface mt-4">
+          <h2 className="section-title">จัดการเป้าหมาย</h2>
           <div className="mt-2 flex flex-wrap gap-2">
             {!goal.isPrimary && <SetPrimaryButton goalId={goal.id} />}
             <AchieveGoalButton goalId={goal.id} />

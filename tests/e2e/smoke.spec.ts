@@ -70,9 +70,10 @@ test("exactly one nav visible per form factor with five labeled links", async ({
   for (const label of NAV_LABELS) {
     await expect(visible.getByRole("link", { name: label })).toBeVisible();
   }
-  await expect(
-    visible.getByRole("link", { name: "วันนี้" }),
-  ).toHaveAttribute("aria-current", "page");
+  await expect(visible.getByRole("link", { name: "วันนี้" })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
 });
 
 test("avatar opens settings", async ({ page }) => {
@@ -81,6 +82,29 @@ test("avatar opens settings", async ({ page }) => {
   await page.getByRole("link", { name: "ตั้งค่า" }).click();
   await expect(page).toHaveURL(/\/settings$/);
   await expect(page.getByRole("heading", { name: "ตั้งค่า" })).toBeVisible();
+});
+
+test("profile remains available after leaving the planner", async ({
+  page,
+}, testInfo) => {
+  await loginFresh(page);
+  await page.goto("/plan");
+  await expect(
+    page.getByRole("heading", { name: "แผนซ้อม", exact: true }),
+  ).toBeVisible();
+  const nav = page.getByTestId(
+    testInfo.project.name === "mobile" ? "bottom-nav" : "sidebar",
+  );
+  await nav.getByRole("link", { name: "บันทึก", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "บันทึก", exact: true }),
+  ).toBeVisible();
+  const profile = page.getByRole("link", { name: "ตั้งค่า", exact: true });
+  await expect(profile).toBeVisible();
+  await profile.click();
+  await expect(
+    page.getByRole("heading", { name: "ตั้งค่า", exact: true }),
+  ).toBeVisible();
 });
 
 test("home screenshot", async ({ page }, testInfo) => {

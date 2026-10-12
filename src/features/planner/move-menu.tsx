@@ -11,6 +11,7 @@ export function MoveMenu({
   dayLength,
   locked,
   onMove,
+  onViewDetails,
 }: {
   title: string;
   dayDate: string;
@@ -18,26 +19,27 @@ export function MoveMenu({
   dayLength: number;
   locked: boolean;
   onMove: (targetDate: string, targetIndex?: number) => void;
+  onViewDetails?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [pickedDate, setPickedDate] = useState(dayDate);
 
   if (locked) {
     return (
-      <span className="inline-flex min-h-11 shrink-0 items-center text-sm text-muted">
+      <span className="sr-only">
         มีผลบันทึกแล้ว ย้ายไม่ได้
       </span>
     );
   }
 
   return (
-    <div className="relative shrink-0">
+    <div className="relative z-10 shrink-0">
       <button
         type="button"
         aria-expanded={open}
         aria-label={`ตัวเลือก${title}`}
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex size-11 items-center justify-center rounded-button border border-line bg-paper text-xl font-bold text-charcoal"
+        className="inline-flex size-11 items-center justify-center rounded-button text-xl text-muted hover:bg-forest/5"
       >
         ⋯
       </button>
@@ -45,8 +47,9 @@ export function MoveMenu({
         <div
           role="menu"
           aria-label={`ย้าย${title}`}
-          className="absolute right-0 z-20 mt-1 w-64 rounded-card border border-line bg-paper p-3"
+          className="absolute right-0 z-20 mt-1 w-64 rounded-card border border-line bg-paper p-3 shadow-lg"
         >
+          {onViewDetails && <button type="button" role="menuitem" onClick={() => { onViewDetails(); setOpen(false); }} className="mb-2 flex min-h-11 w-full items-center rounded-button px-1 text-left text-sm font-medium text-forest">ดูรายละเอียดแผน</button>}
           <label
             className="mb-1 block text-sm font-medium text-charcoal"
             htmlFor={`mvdate-${dayDate}-${index}`}

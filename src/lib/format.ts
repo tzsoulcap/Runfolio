@@ -1,6 +1,7 @@
 // Thai display formatting (§17: ปี ค.ศ. หน่วย km/นาที/วินาที).
 import type {
   CountMode,
+  IntensityTarget,
   MuscleGroup,
   RunningTarget,
   StrengthPrescription,
@@ -131,6 +132,19 @@ export function formatDistanceM(m: number | null): string {
 // Bare km number for stat blocks ("10 / 12 km" composes the unit once).
 export function formatKm(m: number): string {
   return trimNum(m / 1000);
+}
+
+export function formatIntensityTh(target: IntensityTarget | null | undefined): string | null {
+  if (!target || target.kind === "NONE") return null;
+  if (target.kind === "HR_ZONE") {
+    return `Zone ${target.zoneMin}${target.zoneMax === target.zoneMin ? "" : `–${target.zoneMax}`}`;
+  }
+  if (target.kind === "EFFORT") return target.label;
+  const pace = (seconds: number) => {
+    const rounded = Math.round(seconds);
+    return `${Math.floor(rounded / 60)}:${String(rounded % 60).padStart(2, "0")}`;
+  };
+  return `${pace(target.fastSecPerKm)}–${pace(target.slowSecPerKm)}/km`;
 }
 
 export function formatTargetTh(

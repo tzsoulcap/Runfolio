@@ -125,5 +125,5 @@ test("race day pulls distance from the chosen goal", async ({ page }) => {
   await section.getByLabel("หมายเหตุ", { exact: true }).fill(note);
   await section.getByRole("button", { name: "เพิ่มแผน", exact: true }).click();
   const row = section.locator("article", { hasText: note });
-  await expect(row).toContainText("เป้าหมาย 21.1 km");
+  await expect(row).toContainText("21.1 km");
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -11,11 +11,7 @@ import { Button } from "@/components/ui/button";
 import { FieldError, inputCls, labelCls } from "@/components/ui/field";
 import type { RunningTarget } from "@/lib/domain/master";
 import { mintKey } from "@/lib/keys";
-import {
-  formatDateTh,
-  formatTargetFullTh,
-  weekdayTh,
-} from "@/lib/format";
+import { formatDateTh, formatTargetFullTh, weekdayTh } from "@/lib/format";
 
 const emptyToUndefined = (v: unknown) =>
   v === "" || v === null || v === undefined ? undefined : v;
@@ -23,7 +19,9 @@ const emptyToUndefined = (v: unknown) =>
 const FormSchema = z.object({
   performedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "วันที่ไม่ถูกต้อง"),
   runningWorkoutCode: z.string().min(1, "เลือกประเภทซ้อม"),
-  distanceKm: z.number({ message: "ใส่ระยะทางจริง" }).positive("ระยะต้องมากกว่า 0"),
+  distanceKm: z
+    .number({ message: "ใส่ระยะทางจริง" })
+    .positive("ระยะต้องมากกว่า 0"),
   hours: z.number().int().min(0).max(23),
   minutes: z.number().int().min(0).max(59),
   seconds: z.number().int().min(0).max(59),
@@ -60,9 +58,7 @@ export type LogMasterOption = {
   nameEn: string;
 };
 
-function planRefText(
-  target: RunningTarget | null | undefined,
-): string | null {
+function planRefText(target: RunningTarget | null | undefined): string | null {
   return formatTargetFullTh(target);
 }
 
@@ -93,6 +89,8 @@ export function LogForm({
   masters,
   today,
   edit,
+  compactTrigger = false,
+  triggerLabel,
 }: {
   planItemId?: string;
   planDate?: string;
@@ -101,6 +99,8 @@ export function LogForm({
   masters?: LogMasterOption[];
   today: string;
   edit?: { logId: string; initial: LogFormInitial };
+  compactTrigger?: boolean;
+  triggerLabel?: ReactNode;
 }) {
   const router = useRouter();
   const offPlan = planItemId === undefined;
@@ -187,12 +187,13 @@ export function LogForm({
   const splitTotal = splits.reduce(
     (acc, r) => {
       const km = Number(r.distanceKm);
-      const sec =
-        (Number(r.minutes) || 0) * 60 + (Number(r.seconds) || 0);
+      const sec = (Number(r.minutes) || 0) * 60 + (Number(r.seconds) || 0);
       return {
         km:
           acc.km + (r.distanceKm.trim() !== "" && Number.isFinite(km) ? km : 0),
-        sec: acc.sec + (r.minutes.trim() !== "" || r.seconds.trim() !== "" ? sec : 0),
+        sec:
+          acc.sec +
+          (r.minutes.trim() !== "" || r.seconds.trim() !== "" ? sec : 0),
       };
     },
     { km: 0, sec: 0 },
@@ -225,13 +226,14 @@ export function LogForm({
     const builtSplits: Array<{ distanceM?: number; durationSec?: number }> = [];
     for (const [i, row] of splits.entries()) {
       const hasDist = row.distanceKm.trim() !== "";
-      const hasTime =
-        row.minutes.trim() !== "" || row.seconds.trim() !== "";
+      const hasTime = row.minutes.trim() !== "" || row.seconds.trim() !== "";
       if (!hasDist && !hasTime) {
         issues.push(`รอบที่ ${i + 1}: ใส่ระยะหรือเวลาอย่างน้อยหนึ่งอย่าง`);
         continue;
       }
-      const distanceM = hasDist ? Math.round(Number(row.distanceKm) * 1000) : undefined;
+      const distanceM = hasDist
+        ? Math.round(Number(row.distanceKm) * 1000)
+        : undefined;
       const durationSec = hasTime
         ? (Number(row.minutes) || 0) * 60 + (Number(row.seconds) || 0)
         : undefined;
@@ -285,9 +287,29 @@ export function LogForm({
   }
 
   if (!open) {
+    if (compactTrigger) {
+      return (
+        <button
+          type="button"
+          aria-label="บันทึกผล"
+          onClick={() => setOpen(true)}
+          className="absolute inset-0 rounded-button transition-colors hover:bg-forest/[0.03]"
+        >
+          <span className="sr-only">บันทึกผล</span>
+        </button>
+      );
+    }
     return (
-      <Button type="button" size="sm" onClick={() => setOpen(true)}>
-        {isEdit ? "แก้ไขผลวิ่ง" : offPlan ? "บันทึกวิ่งนอกแผน" : "บันทึกผล"}
+      <Button
+        type="button"
+        size="sm"
+        onClick={() => setOpen(true)}
+        aria-label={
+          isEdit ? "แก้ไขผลวิ่ง" : offPlan ? "บันทึกวิ่งนอกแผน" : "บันทึกผล"
+        }
+      >
+        {triggerLabel ??
+          (isEdit ? "แก้ไขผลวิ่ง" : offPlan ? "บันทึกวิ่งนอกแผน" : "บันทึกผล")}
       </Button>
     );
   }
@@ -295,7 +317,7 @@ export function LogForm({
   return (
     <form
       onSubmit={form.handleSubmit(onSubmit)}
-      className="mt-3 rounded-card border border-line bg-paper p-4"
+      className="form-panel col-span-full w-full"
       aria-label="ฟอร์มบันทึกผลจริง"
     >
       <div>
@@ -312,8 +334,8 @@ export function LogForm({
         <FieldError message={form.formState.errors.performedDate?.message} />
         {planDate && watchedDate !== planDate && (
           <p className="mt-1 text-sm text-muted">
-            แผนวัน{weekdayTh(planDate)}ที่ {formatDateTh(planDate)} ·
-            ทำจริงวัน{weekdayTh(watchedDate)}ที่ {formatDateTh(watchedDate)} ·
+            แผนวัน{weekdayTh(planDate)}ที่ {formatDateTh(planDate)} · ทำจริงวัน
+            {weekdayTh(watchedDate)}ที่ {formatDateTh(watchedDate)} ·
             ความสำเร็จนับกับสัปดาห์แผน ระยะสะสมนับวันที่ทำจริง
           </p>
         )}
@@ -553,10 +575,7 @@ export function LogForm({
         )}
         <ol className="mt-2 space-y-2">
           {splits.map((row, i) => (
-            <li
-              key={row.key}
-              className="rounded-button border border-line p-3"
-            >
+            <li key={row.key} className="rounded-button border border-line p-3">
               <p className="text-base font-medium">รอบที่ {i + 1}</p>
               <div className="mt-1 grid grid-cols-3 gap-2">
                 <div>
@@ -683,8 +702,7 @@ export function LogForm({
           inputMode="numeric"
           className={inputCls}
           {...form.register("rpe", {
-            setValueAs: (v) =>
-              v === "" || v === null ? undefined : Number(v),
+            setValueAs: (v) => (v === "" || v === null ? undefined : Number(v)),
           })}
         />
         <FieldError message={form.formState.errors.rpe?.message} />

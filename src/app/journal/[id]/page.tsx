@@ -2,6 +2,8 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
+import { ChevronLeft, Dumbbell } from "lucide-react";
+import { RunningIcon } from "@/components/running-icon";
 
 import { getSessionUserId } from "@/lib/auth/session";
 import {
@@ -104,8 +106,7 @@ function SplitsTotal({
   });
   return (
     <p className="mt-2 text-base">
-      รวมรอบ: {sumBits.join(" · ")} เทียบ totals ที่กรอก{" "}
-      {totalBits.join(" · ")}
+      รวมรอบ: {sumBits.join(" · ")} เทียบ totals ที่กรอก {totalBits.join(" · ")}
       <span className="block text-sm text-muted">
         ยอดรวมรอบใช้อ้างอิงเท่านั้น สถิติใช้ totals ที่กรอกด้านบน
       </span>
@@ -149,9 +150,7 @@ function StrengthActuals({
         const snap = plannedExercises?.find(
           (p) => p.plannedExerciseId === exercise.plannedExerciseId,
         );
-        const parsed = StrengthPrescriptionSchema.safeParse(
-          snap?.prescription,
-        );
+        const parsed = StrengthPrescriptionSchema.safeParse(snap?.prescription);
         const repLabel = snapshot?.repLabel ?? "REPS";
         const bySet = new Map<number, typeof sets>();
         for (const s of sets) {
@@ -160,8 +159,8 @@ function StrengthActuals({
           bySet.set(s.setIndex, list);
         }
         return (
-          <div key={exercise.id}>
-            <h3 className="text-base font-semibold">
+          <div key={exercise.id} className="rounded-button bg-[#f6f4ef] p-3">
+            <h3 className="text-[15px] font-semibold">
               {snapshot?.nameTh ?? exercise.exerciseCode}
             </h3>
             {parsed.success && (
@@ -173,7 +172,7 @@ function StrengthActuals({
                 )}
               </p>
             )}
-            <ol className="mt-1 space-y-0.5 text-base">
+            <ol className="mt-2 space-y-1 text-sm leading-relaxed">
               {[...bySet].map(([setIndex, rows]) => (
                 <li key={setIndex}>
                   เซ็ต {setIndex}:{" "}
@@ -261,9 +260,7 @@ async function JournalDetail({ id }: { id: string }) {
     splits: splits.map((s) => ({
       distanceKm: s.distanceM !== null ? String(s.distanceM / 1000) : "",
       minutes:
-        s.durationSec !== null
-          ? String(Math.floor(s.durationSec / 60))
-          : "",
+        s.durationSec !== null ? String(Math.floor(s.durationSec / 60)) : "",
       seconds: s.durationSec !== null ? String(s.durationSec % 60) : "",
     })),
     outcome: log.outcome === "PARTIAL" ? "PARTIAL" : "COMPLETED",
@@ -331,29 +328,28 @@ async function JournalDetail({ id }: { id: string }) {
       };
     }),
   };
-  const editTarget = RunningTargetSchema.safeParse(
-    planned?.runningTarget,
-  );
+  const editTarget = RunningTargetSchema.safeParse(planned?.runningTarget);
 
   return (
-    <div>
+    <div className="app-page">
       <Link
         href="/journal"
-        className="inline-flex min-h-11 items-center text-base font-medium text-forest underline underline-offset-4"
+        className="-ml-1 inline-flex min-h-11 items-center gap-1 text-sm font-medium text-muted"
       >
-        ‹ บันทึกทั้งหมด
+        <ChevronLeft className="size-5" aria-hidden />
+        บันทึกทั้งหมด
       </Link>
-      <h1 className="mt-1 text-3xl font-semibold sm:text-4xl">{name}</h1>
-      <p className="mt-1 text-base text-muted">
+      <h1 className="page-title mt-1">{name}</h1>
+      <p className="mt-2 text-sm text-muted">
         วัน{weekdayTh(log.performedDate)}ที่ {formatDateTh(log.performedDate)}
         {!plan && (
-          <span className="ml-2 rounded-full border border-line px-2 py-0.5 text-sm">
+          <span className="ml-2 rounded-full bg-ivory px-2 py-0.5 text-xs">
             นอกแผน
           </span>
         )}
       </p>
 
-      <div className="mt-3 flex flex-wrap items-start gap-2">
+      <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
         {isStrength ? (
           <StrengthLogForm
             planItemId={log.planItemId ?? undefined}
@@ -378,53 +374,59 @@ async function JournalDetail({ id }: { id: string }) {
       </div>
 
       {isStrength ? (
-        <dl className="mt-4 grid grid-cols-3 gap-2 rounded-card border border-line bg-paper p-4 text-center">
-          <div>
-            <dt className="text-sm text-muted">ผล</dt>
-            <dd className="text-xl font-semibold">
+        <dl className="today-card mt-4 grid grid-cols-2 gap-x-4 gap-y-4 rounded-[20px] p-5 text-paper">
+          <div className="col-span-full">
+            <dt className="flex items-center justify-between text-sm text-paper/85">
+              ผล
+              <Dumbbell className="size-6 rotate-45 text-lime" aria-hidden />
+            </dt>
+            <dd className="mt-2 text-[32px] leading-tight font-semibold">
               {outcomeTh(log.outcome)}
             </dd>
           </div>
-          <div>
-            <dt className="text-sm text-muted">เวลาเซสชัน</dt>
-            <dd className="text-xl font-semibold">
+          <div className="border-t border-paper/25 pt-3">
+            <dt className="text-xs text-paper/85">เวลาเซสชัน</dt>
+            <dd className="mt-1 text-xl font-medium">
               {log.sessionDurationSec !== null
                 ? formatHMS(log.sessionDurationSec)
                 : "–"}
             </dd>
           </div>
-          <div>
-            <dt className="text-sm text-muted">เวลาเริ่ม</dt>
-            <dd className="text-xl font-semibold">
+          <div className="border-t border-paper/25 pt-3">
+            <dt className="text-xs text-paper/85">เวลาเริ่ม</dt>
+            <dd className="mt-1 text-xl font-medium">
               {log.startedAt ? formatTimeTh(log.startedAt, timezone) : "–"}
             </dd>
           </div>
         </dl>
       ) : (
         <>
-          <dl className="mt-4 grid grid-cols-3 gap-2 rounded-card border border-line bg-paper p-4 text-center">
-            <div>
-              <dt className="text-sm text-muted">ระยะจริง</dt>
-              <dd className="text-xl font-semibold">
+          <dl className="today-card mt-4 grid grid-cols-2 gap-x-4 gap-y-4 rounded-[20px] p-5 text-paper">
+            <div className="col-span-full">
+              <dt className="flex items-center justify-between text-sm text-paper/85">
+                ระยะจริง
+                <RunningIcon className="size-6 text-lime" aria-hidden />
+              </dt>
+              <dd className="mt-1 text-[44px] leading-tight font-semibold tracking-tight">
                 {formatDistanceM(log.distanceM)}
               </dd>
             </div>
-            <div>
-              <dt className="text-sm text-muted">เวลาเคลื่อนไหว</dt>
-              <dd className="text-xl font-semibold">
+            <div className="border-t border-paper/25 pt-3">
+              <dt className="text-xs text-paper/85">เวลาเคลื่อนไหว</dt>
+              <dd className="mt-1 text-xl font-medium">
                 {log.movingDurationSec !== null
                   ? formatHMS(log.movingDurationSec)
                   : "–"}
               </dd>
             </div>
-            <div>
-              <dt className="text-sm text-muted">Pace</dt>
-              <dd className="text-xl font-semibold">
+            <div className="border-t border-paper/25 pt-3">
+              <dt className="text-xs text-paper/85">Pace</dt>
+              <dd className="mt-1 text-xl font-medium">
                 {pace !== null ? `${pace}/km` : "–"}
               </dd>
             </div>
           </dl>
-          <dl className="mt-4 grid grid-cols-2 gap-2 rounded-card border border-line bg-paper p-4 sm:grid-cols-4">
+          <dl className="surface mt-4 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
             <div>
               <dt className="text-sm text-muted">ผล</dt>
               <dd className="text-base font-semibold">
@@ -455,11 +457,8 @@ async function JournalDetail({ id }: { id: string }) {
         </>
       )}
 
-      <section
-        aria-label="แผนเทียบผลจริง"
-        className="mt-4 rounded-card border border-line bg-paper p-4"
-      >
-        <h2 className="text-xl font-semibold">แผนเทียบผลจริง</h2>
+      <section aria-label="แผนเทียบผลจริง" className="surface mt-4">
+        <h2 className="section-title">แผนเทียบผลจริง</h2>
         {isStrength ? (
           planned?.exercises ? (
             <StrengthActuals
@@ -472,7 +471,7 @@ async function JournalDetail({ id }: { id: string }) {
             </p>
           )
         ) : planned ? (
-          <div className="mt-2 space-y-1 text-base">
+          <div className="mt-2 space-y-2 text-sm leading-relaxed">
             <p>
               แผน {planTargetText(planned)} / จริง{" "}
               {formatDistanceM(log.distanceM)}
@@ -481,8 +480,8 @@ async function JournalDetail({ id }: { id: string }) {
               <p className="text-muted">
                 แผนวัน{weekdayTh(planned.date)}ที่ {formatDateTh(planned.date)}{" "}
                 · ทำจริงวัน{weekdayTh(log.performedDate)}ที่{" "}
-                {formatDateTh(log.performedDate)} ·
-                ความสำเร็จนับกับสัปดาห์แผน ระยะสะสมนับวันที่ทำจริง
+                {formatDateTh(log.performedDate)} · ความสำเร็จนับกับสัปดาห์แผน
+                ระยะสะสมนับวันที่ทำจริง
               </p>
             )}
           </div>
@@ -491,49 +490,39 @@ async function JournalDetail({ id }: { id: string }) {
             ผลนอกแผน ไม่ได้ผูกกับแผนซ้อม
           </p>
         )}
-        {isStrength &&
-          planned?.date &&
-          planned.date !== log.performedDate && (
-            <p className="mt-2 text-base text-muted">
-              แผนวัน{weekdayTh(planned.date)}ที่ {formatDateTh(planned.date)} ·
-              ทำจริงวัน{weekdayTh(log.performedDate)}ที่{" "}
-              {formatDateTh(log.performedDate)} ·
-              ความสำเร็จนับกับสัปดาห์แผน ผลงานเวทนับวันที่ทำจริง
-            </p>
-          )}
+        {isStrength && planned?.date && planned.date !== log.performedDate && (
+          <p className="mt-2 text-base text-muted">
+            แผนวัน{weekdayTh(planned.date)}ที่ {formatDateTh(planned.date)} ·
+            ทำจริงวัน{weekdayTh(log.performedDate)}ที่{" "}
+            {formatDateTh(log.performedDate)} · ความสำเร็จนับกับสัปดาห์แผน
+            ผลงานเวทนับวันที่ทำจริง
+          </p>
+        )}
       </section>
 
       {isStrength &&
         (!planned?.exercises || planned.exercises.length === 0) &&
         strength.length > 0 && (
-          <section
-            aria-label="ผลเวท"
-            className="mt-4 rounded-card border border-line bg-paper p-4"
-          >
-            <h2 className="text-xl font-semibold">ผลเวท</h2>
+          <section aria-label="ผลเวท" className="surface mt-4">
+            <h2 className="section-title">ผลเวท</h2>
             <StrengthActuals strength={strength} />
           </section>
         )}
 
       {!isStrength && splits.length > 0 && (
-        <section
-          aria-label="รอบที่วัดได้"
-          className="mt-4 rounded-card border border-line bg-paper p-4"
-        >
-          <h2 className="text-xl font-semibold">รอบที่วัดได้</h2>
+        <section aria-label="รอบที่วัดได้" className="surface mt-4">
+          <h2 className="section-title">รอบที่วัดได้</h2>
           {planned && (
             <p className="mt-1 text-sm text-muted">
               แผนอ้างอิง: {planTargetText(planned)}
             </p>
           )}
-          <ol className="mt-2 space-y-1 text-base">
+          <ol className="mt-2 space-y-2 text-sm leading-relaxed">
             {splits.map((s, i) => (
               <li key={s.id}>
                 รอบที่ {i + 1}:{" "}
                 {[
-                  s.distanceM !== null
-                    ? formatDistanceM(s.distanceM)
-                    : null,
+                  s.distanceM !== null ? formatDistanceM(s.distanceM) : null,
                   s.durationSec !== null ? formatHMS(s.durationSec) : null,
                 ]
                   .filter(Boolean)
@@ -550,12 +539,9 @@ async function JournalDetail({ id }: { id: string }) {
       )}
 
       {(log.rpe !== null || log.feeling || log.note) && (
-        <section
-          aria-label="บันทึกเพิ่มเติม"
-          className="mt-4 rounded-card border border-line bg-paper p-4"
-        >
-          <h2 className="text-xl font-semibold">บันทึกเพิ่มเติม</h2>
-          <div className="mt-2 space-y-1 text-base">
+        <section aria-label="บันทึกเพิ่มเติม" className="surface mt-4">
+          <h2 className="section-title">บันทึกเพิ่มเติม</h2>
+          <div className="mt-2 space-y-2 text-sm leading-relaxed">
             {log.rpe !== null && <p>RPE {log.rpe}</p>}
             {log.feeling && <p>ความรู้สึก {log.feeling}</p>}
             {log.note && <p>{log.note}</p>}

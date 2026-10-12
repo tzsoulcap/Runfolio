@@ -93,7 +93,7 @@ test("home shows today states from planner data", async ({ page }) => {
   const note2 = `e2e-home-${stamp}-2`;
   await addEasyPlan(page, note2);
   await page.goto("/");
-  await expect(page.getByText("วันนี้ 2 เซสชัน")).toBeVisible();
+  await expect(page.getByText("วันนี้ · 2 เซสชัน")).toBeVisible();
 
   // Viewport gate: header + today + week-strip head visible without scroll.
   const h1Box = await page
@@ -123,7 +123,8 @@ test("home shows today states from planner data", async ({ page }) => {
   await expect(page.getByText("ซ้อมครบแล้ววันนี้")).toBeVisible();
   await expect(page.getByRole("link", { name: "ดูบันทึกวันนี้" })).toBeVisible();
   const summary = page.locator('section[aria-label="ภาพรวมสัปดาห์"]');
-  await expect(summary.getByText("10 / 12 km")).toBeVisible();
+  await expect(summary.getByText("10.0")).toBeVisible();
+  await expect(summary.getByText("/ 12 km")).toBeVisible();
   await expect(summary.getByText("2 / 2")).toBeVisible();
   await expect(summary.getByText("Strength", { exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "ดูทั้งหมด" })).toBeVisible();

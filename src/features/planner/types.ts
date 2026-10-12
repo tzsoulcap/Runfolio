@@ -1,4 +1,5 @@
 import type {
+  IntensityTarget,
   RunningTarget,
   StrengthPrescription,
 } from "@/lib/domain/master";
@@ -19,7 +20,8 @@ export type PlanItemDTO = {
   status: DerivedPlanStatus;
   runningWorkoutCode: string | null;
   runningTarget: RunningTarget | null;
-  log: { id: string; outcome: string } | null;
+  intensityTarget?: IntensityTarget | null;
+  log: { id: string; outcome: string; distanceM?: number | null; movingDurationSec?: number | null } | null;
   exercises: Array<{
     id: string;
     exerciseCode: string;
@@ -55,7 +57,8 @@ export function toDayDTO(day: DayWithItems): DayDTO {
       status: item.status,
       runningWorkoutCode: item.runningWorkoutCode,
       runningTarget: item.runningTarget,
-      log: item.log ? { id: item.log.id, outcome: item.log.outcome } : null,
+      intensityTarget: item.intensityTarget,
+      log: item.log ? { id: item.log.id, outcome: item.log.outcome, distanceM: item.log.distanceM, movingDurationSec: item.log.movingDurationSec } : null,
       exercises: item.exercises.map((e) => ({
         id: e.id,
         exerciseCode: e.exerciseCode,

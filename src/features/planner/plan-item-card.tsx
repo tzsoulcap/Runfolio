@@ -1,12 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { Check, Dumbbell, Route } from "lucide-react";
+import { useState } from "react";
+import { Check, Dumbbell, MoreHorizontal } from "lucide-react";
 
+import { RunningIcon } from "@/components/running-icon";
 import type { DerivedPlanStatus } from "@/lib/domain/plan";
+import { paceLabelFor } from "@/lib/domain/metrics";
 import { LogForm } from "@/features/journal/log-form";
 import { StrengthLogForm } from "@/features/journal/strength-log-form";
 import {
+  formatIntensityTh,
+  formatDistanceM,
   formatPrescriptionTh,
   formatStructuredDetail,
   formatStructuredMain,
@@ -17,62 +22,16 @@ import {
 import { MoveMenu } from "./move-menu";
 import type { DayDTO, PlanItemDTO } from "./types";
 
-// Exhaustive by construction: adding a status without a badge is a type error.
-const badgeCls: Record<DerivedPlanStatus, string> = {
-  PLANNED: "border border-line text-charcoal",
-  COMPLETED: "bg-lime text-charcoal",
-  PARTIAL: "bg-clay text-charcoal",
-  SKIPPED: "bg-slate-soft text-charcoal",
-  MISSED: "border border-line text-muted",
+const statusCls: Record<DerivedPlanStatus, string> = {
+  PLANNED: "text-muted",
+  COMPLETED: "text-[#477b2e]",
+  PARTIAL: "text-[#895537]",
+  SKIPPED: "text-muted",
+  MISSED: "text-muted",
 };
 
-function TargetLine({ item }: { item: PlanItemDTO }) {
-  const main =
-    formatStructuredMain(item.runningTarget) ??
-    formatTargetTh(item.runningTarget);
-  const detail = formatStructuredDetail(item.runningTarget);
-  return (
-    <p className="mt-0.5 text-base text-muted">
-      เป้าหมาย {main}
-      {detail ? ` · ${detail}` : ""}
-      {item.plannedStartTime ? ` · เริ่ม ${item.plannedStartTime}` : ""}
-    </p>
-  );
-}
-
-function StrengthLines({ item }: { item: PlanItemDTO }) {
-  return (
-    <div className="mt-0.5">
-      <ol className="list-decimal space-y-0.5 pl-5 text-base text-muted">
-        {item.exercises.map((e) => (
-          <li key={e.id}>
-            {e.masterSnapshot?.nameTh ?? e.exerciseCode}{" "}
-            {formatPrescriptionTh(
-              e.prescription,
-              e.masterSnapshot?.repLabel === "STEPS" ? "STEPS" : "REPS",
-            )}
-          </li>
-        ))}
-      </ol>
-      {item.plannedStartTime && (
-        <p className="mt-0.5 text-base text-muted">
-          เริ่ม {item.plannedStartTime}
-        </p>
-      )}
-    </div>
-  );
-}
-
 export function PlanItemCard({
-  item,
-  day,
-  index,
-  dayLength,
-  today,
-  strengthMasters,
-  handle,
-  overlay,
-  onMove,
+  item, day, index, dayLength, today, strengthMasters, handle, overlay, onMove,
 }: {
   item: PlanItemDTO;
   day: DayDTO;
@@ -84,95 +43,60 @@ export function PlanItemCard({
   overlay?: boolean;
   onMove: (targetDate: string, targetIndex?: number) => void;
 }) {
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const locked = item.log !== null;
   const isStrength = item.activityType === "STRENGTH";
-  const tabCls =
-    item.status === "COMPLETED"
-      ? "bg-lime-deep"
-      : isStrength
-        ? "bg-steel"
-        : item.status === "PLANNED"
-          ? "bg-forest"
-          : item.status === "PARTIAL"
-            ? "bg-clay-deep"
-            : "bg-line-strong";
-  const Icon = isStrength ? Dumbbell : Route;
+  const completed = item.status === "COMPLETED";
+  const tabCls = isStrength ? "bg-steel" : item.status === "PARTIAL" ? "bg-clay-deep" : item.status === "SKIPPED" || item.status === "MISSED" ? "bg-line-strong" : day.date === today && !completed ? "bg-forest" : "bg-lime-deep";
+  const Icon = isStrength ? Dumbbell : RunningIcon;
+  const target = isStrength ? `${item.exercises.length} ท่า` : item.log?.distanceM != null ? formatDistanceM(item.log.distanceM) : formatStructuredMain(item.runningTarget) ?? formatTargetTh(item.runningTarget);
+  const actualPace = item.log ? paceLabelFor(item.log.distanceM ?? null, item.log.movingDurationSec ?? null) : null;
+  const detail = [
+    target,
+    isStrength ? null : actualPace ? `${actualPace}/km` : formatIntensityTh(item.intensityTarget),
+    isStrength ? null : formatStructuredDetail(item.runningTarget),
+    item.note,
+    item.plannedStartTime ? `เริ่ม ${item.plannedStartTime}` : null,
+  ].filter(Boolean).join(" · ");
+
   return (
-    <article
-      className={`relative rounded-card border border-line bg-paper p-4 pl-6 ${overlay ? "shadow-lg" : ""}`}
-    >
-      <span
-        aria-hidden="true"
-        className={`absolute top-4 bottom-4 left-2.5 w-1.5 rounded-full ${tabCls}`}
-      />
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-start gap-1">
-          {handle}
-          <Icon
-            className={`mt-1 size-5 shrink-0 ${isStrength ? "text-steel" : "text-charcoal"}`}
-            aria-hidden
-          />
+    <article className={`relative rounded-[11px] ${overlay ? "shadow-lg" : ""} ${isStrength ? "bg-[#eef1f3]" : completed ? "border border-[#e9eddf] bg-[#f6f8f0]" : "bg-[#f6f4ef]"}`}>
+      <span aria-hidden className={`absolute inset-y-0 left-0 w-1.5 rounded-l-[11px] ${tabCls}`} />
+      <div className="relative grid min-h-[clamp(52px,12vw,56px)] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2 py-1 pr-1.5 pl-3">
+        {handle ? <div className="relative z-10">{handle}</div> : <span aria-hidden />}
+        <div className="pointer-events-none flex min-w-0 items-center gap-3 py-1">
+          <Icon className={`size-[25px] shrink-0 ${isStrength ? "rotate-45 text-muted" : "text-forest"}`} strokeWidth={1.7} aria-hidden />
           <div className="min-w-0">
-            <h3 className="text-lg font-semibold">{item.title}</h3>
-            {isStrength ? (
-              <StrengthLines item={item} />
-            ) : (
-              <TargetLine item={item} />
-            )}
-            {item.note && (
-              <p className="mt-1 text-base text-charcoal">{item.note}</p>
-            )}
+            <h3 className="text-[clamp(15px,3.9vw,18px)] leading-snug font-semibold">{item.title}</h3>
+            <p className="line-clamp-2 text-[clamp(13px,3.3vw,15px)] leading-snug text-muted">{detail}</p>
           </div>
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-2">
-          <span
-            className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-medium ${badgeCls[item.status]}`}
-          >
-            {item.status === "COMPLETED" && (
-              <Check className="size-4" aria-hidden strokeWidth={3} />
-            )}
-            {STATUS_TH[item.status]}
-          </span>
-          {!overlay && (
-            <MoveMenu
-              title={item.title}
-              dayDate={day.date}
-              index={index}
-              dayLength={dayLength}
-              locked={locked}
-              onMove={onMove}
-            />
+        <div className="flex shrink-0 items-center gap-1">
+          {item.status !== "PLANNED" && (
+            <span className={`pointer-events-none inline-flex items-center gap-1 text-[11px] font-medium ${statusCls[item.status]}`}>
+              {completed && <span className="flex size-4 items-center justify-center rounded-full bg-[#477b2e] text-paper"><Check className="size-3" strokeWidth={2.5} aria-hidden /></span>}
+              <span className="max-[360px]:sr-only">{STATUS_TH[item.status]}</span>
+            </span>
           )}
+          {!overlay && !locked && <MoveMenu title={item.title} dayDate={day.date} index={index} dayLength={dayLength} locked={false} onMove={onMove} onViewDetails={() => setDetailsOpen((current) => !current)} />}
+          {locked && <><MoreHorizontal className="mx-2 size-5 text-muted" aria-hidden /><span className="sr-only">มีผลบันทึกแล้ว ย้ายไม่ได้</span></>}
         </div>
+        {detailsOpen && <div className="relative z-10 col-span-full mt-2 border-t border-line px-2 py-3 text-sm text-muted">
+          {isStrength && <ol className="list-decimal space-y-2 pl-4">{item.exercises.map((exercise) => <li key={exercise.id}>{exercise.masterSnapshot?.nameTh ?? exercise.exerciseCode}{" "}{formatPrescriptionTh(exercise.prescription, exercise.masterSnapshot?.repLabel === "STEPS" ? "STEPS" : "REPS")}</li>)}</ol>}
+          {item.note && <p className={isStrength ? "mt-2" : ""}>{item.note}</p>}
+          {!isStrength && <p>{formatTargetTh(item.runningTarget)}{formatIntensityTh(item.intensityTarget) ? ` · ${formatIntensityTh(item.intensityTarget)}` : ""}</p>}
+          <button type="button" onClick={() => setDetailsOpen(false)} className="mt-2 min-h-11 font-medium text-forest">ปิดรายละเอียด</button>
+        </div>}
+        {!overlay && (item.log ? (
+          <Link href={`/journal/${item.log.id}`} className="absolute inset-0 rounded-button transition-colors hover:bg-forest/[0.03]">
+            <span className="sr-only">ดูผลที่บันทึก</span>
+          </Link>
+        ) : isStrength ? (
+          <StrengthLogForm compactTrigger planItemId={item.id} planDate={day.date} planned={item.exercises} masters={strengthMasters ?? []} today={today} />
+        ) : (
+          <LogForm compactTrigger planItemId={item.id} planDate={day.date} runningWorkoutCode={item.runningWorkoutCode ?? "EASY_RUN"} runningTarget={item.runningTarget} today={today} />
+        ))}
       </div>
-      {!overlay && (
-        <div className="mt-3">
-          {item.log ? (
-            <Link
-              href={`/journal/${item.log.id}`}
-              className="text-base font-medium text-forest underline underline-offset-4"
-            >
-              ดูผลที่บันทึก
-            </Link>
-          ) : item.activityType === "STRENGTH" ? (
-            <StrengthLogForm
-              planItemId={item.id}
-              planDate={day.date}
-              planned={item.exercises}
-              masters={strengthMasters ?? []}
-              today={today}
-            />
-          ) : (
-            <LogForm
-              planItemId={item.id}
-              planDate={day.date}
-              runningWorkoutCode={item.runningWorkoutCode ?? "EASY_RUN"}
-              runningTarget={item.runningTarget}
-              today={today}
-            />
-          )}
-        </div>
-      )}
     </article>
   );
 }
