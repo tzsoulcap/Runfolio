@@ -34,6 +34,7 @@ function SortableItem({
   index,
   dayLength,
   today,
+  strengthMasters,
   onMove,
 }: {
   item: PlanItemDTO;
@@ -41,6 +42,7 @@ function SortableItem({
   index: number;
   dayLength: number;
   today: string;
+  strengthMasters: ExerciseOption[];
   onMove: (itemId: string, targetDate: string, targetIndex?: number) => void;
 }) {
   const locked = item.log !== null;
@@ -69,6 +71,7 @@ function SortableItem({
         index={index}
         dayLength={dayLength}
         today={today}
+        strengthMasters={strengthMasters}
         handle={
           locked ? (
             <span
@@ -173,6 +176,7 @@ export function DayColumn({
                   index={index}
                   dayLength={day.items.length}
                   today={today}
+                  strengthMasters={strengthMasters}
                   onMove={onMove}
                 />
               ))}

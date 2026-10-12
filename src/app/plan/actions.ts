@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { requireUserId } from "@/lib/auth/session";
-import { saveWorkoutLog } from "@/lib/services/logging";
+import { saveStrengthLog, saveWorkoutLog } from "@/lib/services/logging";
 import { ServiceError } from "@/lib/services/errors";
 import {
   addPlanItem,
@@ -50,8 +50,21 @@ export type DataResult<T> =
 function toResult(err: unknown): ActionResult {
   if (err instanceof ServiceError) {
     switch (err.code) {
-      case "VALIDATION":
-        return { ok: false, code: err.code, message: "ข้อมูลไม่ถูกต้อง" };
+      case "VALIDATION": {
+        const msg = err.message;
+        const message = msg.includes("must not be in the future")
+          ? "วันที่ซ้อมห้ามเป็นอนาคต"
+          : msg.includes("at least one set with an actual result")
+            ? "ต้องมีอย่างน้อยหนึ่งเซ็ตที่มีผลจริง"
+            : msg.includes("does not match")
+              ? "ข้างไม่ตรงกับวิธีนับ"
+              : msg.includes("duplicate set number")
+                ? "เซ็ตซ้ำกัน"
+                : msg.includes("planned exercises need a plan")
+                  ? "ท่าจากแผนต้องผูกกับแผนซ้อม"
+                  : "ข้อมูลไม่ถูกต้อง";
+        return { ok: false, code: err.code, message };
+      }
       case "CONFLICT": {
         // One chain maps the service message to kind + Thai copy together.
         const msg = err.message;
@@ -68,17 +81,24 @@ function toResult(err: unknown): ActionResult {
                     ? ["OTHER", "แผนนี้บันทึกผลไปแล้ว"]
                     : msg.includes("active log; cannot move")
                       ? ["LOCKED", "แผนนี้มีผลบันทึกแล้ว ย้ายไม่ได้"]
-                      : msg.includes("needs a rest choice")
-                        ? [
-                            "OTHER",
-                            "เลือกก่อนว่าจะคงวันพักหรือเปลี่ยนเป็นวันซ้อม",
-                          ]
-                        : msg.includes("replace blocked")
-                          ? [
-                              "OTHER",
-                              "สัปดาห์นี้มีผลบันทึกแล้ว แทนที่ไม่ได้",
-                            ]
-                          : ["STALE", "ข้อมูลเปลี่ยนไปแล้ว ลองใหม่อีกครั้ง"];
+                      : msg.includes("plan is not a strength session")
+                        ? ["OTHER", "แผนนี้ไม่ใช่ Strength"]
+                        : msg.includes("plan is not a running session")
+                          ? ["OTHER", "แผนนี้ไม่ใช่การวิ่ง"]
+                          : msg.includes("needs a rest choice")
+                            ? [
+                                "OTHER",
+                                "เลือกก่อนว่าจะคงวันพักหรือเปลี่ยนเป็นวันซ้อม",
+                              ]
+                            : msg.includes("replace blocked")
+                              ? [
+                                  "OTHER",
+                                  "สัปดาห์นี้มีผลบันทึกแล้ว แทนที่ไม่ได้",
+                                ]
+                              : [
+                                  "STALE",
+                                  "ข้อมูลเปลี่ยนไปแล้ว ลองใหม่อีกครั้ง",
+                                ];
         return { ok: false, code: err.code, conflictKind, message };
       }
       case "NOT_FOUND":
@@ -93,7 +113,9 @@ function toResult(err: unknown): ActionResult {
                 ? "ไม่พบสัปดาห์ต้นทาง"
                 : err.message.includes("template")
                   ? "ไม่พบเทมเพลต"
-                  : "ไม่พบข้อมูล",
+                  : err.message.includes("planned exercise")
+                    ? "ไม่พบท่าที่วางแผนไว้"
+                    : "ไม่พบข้อมูล",
         };
       case "UNAUTHENTICATED":
         return {
@@ -448,8 +470,13 @@ export async function saveLogAction(input: {
   hours: number;
   minutes: number;
   seconds: number;
+  elapsedSec?: number;
+  avgHeartRate?: number;
+  startTime?: string;
+  splits?: Array<{ distanceM?: number; durationSec?: number }>;
   outcome: "COMPLETED" | "PARTIAL";
   rpe?: number;
+  feeling?: string;
   note?: string;
 }): Promise<ActionResult> {
   try {
@@ -463,9 +490,78 @@ export async function saveLogAction(input: {
         distanceM: Math.round(input.distanceKm * 1000),
         movingDurationSec:
           input.hours * 3600 + input.minutes * 60 + input.seconds,
+        elapsedDurationSec: input.elapsedSec,
+        avgHeartRate: input.avgHeartRate,
+        startTime:
+          input.startTime && input.startTime.length > 0
+            ? input.startTime
+            : undefined,
+        splits:
+          input.splits && input.splits.length > 0 ? input.splits : undefined,
         outcome: input.outcome,
         rpe: input.rpe,
+        feeling:
+          input.feeling && input.feeling.length > 0 ? input.feeling : undefined,
         note: input.note && input.note.length > 0 ? input.note : undefined,
+      },
+    });
+    revalidatePath("/plan");
+    revalidatePath("/journal");
+    revalidatePath("/");
+    return { ok: true, logId: log.id };
+  } catch (err) {
+    return toResult(err);
+  }
+}
+
+export async function saveStrengthLogAction(input: {
+  clientMutationId: string;
+  planItemId?: string;
+  performedDate: string;
+  sessionMinutes?: number;
+  startTime?: string;
+  outcome: "COMPLETED" | "PARTIAL";
+  rpe?: number;
+  feeling?: string;
+  note?: string;
+  exercises: Array<{
+    plannedExerciseId?: string;
+    exerciseCode: string;
+    variant?: string;
+    countMode: string;
+    sets: Array<{
+      setNumber: number;
+      side: string;
+      measurement: string;
+      reps?: number;
+      durationSec?: number;
+      loadKg?: number | null;
+      note?: string;
+    }>;
+  }>;
+}): Promise<ActionResult> {
+  try {
+    const userId = await requireUserId();
+    // Server re-validates everything (§11): StrengthLogInputSchema owns it.
+    const { log } = await saveStrengthLog(userId, {
+      clientMutationId: input.clientMutationId,
+      planItemId: input.planItemId,
+      actual: {
+        performedDate: input.performedDate,
+        sessionDurationSec:
+          input.sessionMinutes !== undefined
+            ? Math.round(input.sessionMinutes * 60)
+            : undefined,
+        startTime:
+          input.startTime && input.startTime.length > 0
+            ? input.startTime
+            : undefined,
+        outcome: input.outcome,
+        rpe: input.rpe,
+        feeling:
+          input.feeling && input.feeling.length > 0 ? input.feeling : undefined,
+        note: input.note && input.note.length > 0 ? input.note : undefined,
+        exercises: input.exercises,
       },
     });
     revalidatePath("/plan");

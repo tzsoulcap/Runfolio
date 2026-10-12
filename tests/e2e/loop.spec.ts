@@ -89,7 +89,7 @@ test("plan → log → journal survives reload", async ({ page }, testInfo) => {
   // Plan target is reference-only until the user explicitly fills it (§6).
   await expect(row.getByText("แผน 6 km", { exact: false })).toBeVisible();
   await expect(row.getByLabel("ระยะทางจริง (km)")).toHaveValue("");
-  await row.getByRole("button", { name: "ใช้ค่าแผน" }).click();
+  await row.getByRole("button", { name: "ใช้ค่าเป้าหมายเป็นผลจริง" }).click();
   await expect(row.getByLabel("ระยะทางจริง (km)")).toHaveValue("6");
   await row.getByLabel("ระยะทางจริง (km)").fill("5");
   await row.getByLabel("นาที", { exact: true }).fill("38");

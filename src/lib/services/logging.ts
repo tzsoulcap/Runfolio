@@ -1,10 +1,15 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
 import {
+  actualRunningSplits,
+  actualStrengthExercises,
+  actualStrengthSets,
   dailyPlans,
+  plannedStrengthExercises,
   planItems,
   runningWorkoutMasters,
+  strengthExerciseMasters,
   userProfiles,
   weeklyPlans,
   workoutLogs,
@@ -12,10 +17,143 @@ import {
 import {
   assertNotFuture,
   RunningLogInputSchema,
+  StrengthLogInputSchema,
 } from "@/lib/domain/log";
-import { todayInTimeZone } from "@/lib/domain/week";
+import { todayInTimeZone, zonedTimeToUtc } from "@/lib/domain/week";
 
 import { ServiceError } from "./errors";
+
+type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+function validation(message: string): ServiceError {
+  return new ServiceError("VALIDATION", message);
+}
+
+async function findByMutationId(
+  runner: Pick<typeof db, "select"> | DbTx,
+  userId: string,
+  clientMutationId: string,
+) {
+  const [row] = await (runner as typeof db)
+    .select()
+    .from(workoutLogs)
+    .where(
+      and(
+        eq(workoutLogs.userId, userId),
+        eq(workoutLogs.clientMutationId, clientMutationId),
+      ),
+    )
+    .limit(1);
+  return row ?? null;
+}
+
+// A lost race surfaces as 23505 after our pre-checks passed: map it to the
+// shaped outcome (§16) instead of leaking a raw DB error.
+async function resolveUniqueViolation(
+  userId: string,
+  clientMutationId: string,
+  err: unknown,
+): Promise<{ log: typeof workoutLogs.$inferSelect; deduped: true }> {
+  const pg = err as { code?: string } | null;
+  if (!pg || pg.code !== "23505") throw err;
+  // Same mutation id means our own retry (dedupe), else a genuine conflict.
+  const row = await findByMutationId(db, userId, clientMutationId);
+  if (row) return { log: row, deduped: true };
+  throw new ServiceError("CONFLICT", "already saved; refetch and retry");
+}
+
+async function profileTimezone(
+  tx: DbTx,
+  userId: string,
+): Promise<string> {
+  const [profile] = await tx
+    .select()
+    .from(userProfiles)
+    .where(eq(userProfiles.userId, userId))
+    .limit(1);
+  return profile?.timezone ?? "Asia/Bangkok";
+}
+
+type LockedPlan = {
+  item: typeof planItems.$inferSelect;
+  day: typeof dailyPlans.$inferSelect;
+  week: typeof weeklyPlans.$inferSelect;
+};
+
+// Locks the plan row and its week so a concurrent plan move/delete cannot
+// race this save (§13). Single week: no lock-order hazard.
+async function lockOwnedPlan(
+  tx: DbTx,
+  userId: string,
+  planItemId: string,
+  activityType: "RUNNING" | "STRENGTH",
+): Promise<LockedPlan> {
+  const [item] = await tx
+    .select()
+    .from(planItems)
+    .where(and(eq(planItems.id, planItemId), isNull(planItems.deletedAt)))
+    .limit(1)
+    .for("update");
+  if (!item) throw new ServiceError("NOT_FOUND", "plan not found");
+  const [day] = await tx
+    .select()
+    .from(dailyPlans)
+    .where(eq(dailyPlans.id, item.dailyPlanId))
+    .limit(1);
+  const [week] = day
+    ? await tx
+        .select()
+        .from(weeklyPlans)
+        .where(eq(weeklyPlans.id, day.weeklyPlanId))
+        .limit(1)
+        .for("update")
+    : [];
+  if (!day || !week || week.userId !== userId) {
+    throw new ServiceError("NOT_FOUND", "plan not found");
+  }
+  if (item.activityType !== activityType) {
+    throw new ServiceError(
+      "CONFLICT",
+      activityType === "RUNNING"
+        ? "plan is not a running session"
+        : "plan is not a strength session",
+    );
+  }
+  return { item, day, week };
+}
+
+async function assertNoActiveLog(
+  tx: DbTx,
+  planItemId: string,
+  clientMutationId: string,
+): Promise<
+  { log: typeof workoutLogs.$inferSelect; deduped: true } | null
+> {
+  const [clash] = await tx
+    .select()
+    .from(workoutLogs)
+    .where(
+      and(
+        eq(workoutLogs.planItemId, planItemId),
+        isNull(workoutLogs.deletedAt),
+      ),
+    )
+    .limit(1);
+  if (!clash) return null;
+  // Same mutation id, seen late (READ COMMITTED): our own retry.
+  if (clash.clientMutationId === clientMutationId) {
+    return { log: clash, deduped: true };
+  }
+  throw new ServiceError("CONFLICT", "plan already has an active log");
+}
+
+async function unskip(tx: DbTx, item: typeof planItems.$inferSelect) {
+  if (item.planState !== "SKIPPED") return;
+  await tx
+    .update(planItems)
+    .set({ planState: "SCHEDULED", skipReason: null, updatedAt: new Date() })
+    .where(eq(planItems.id, item.id));
+}
 
 export async function saveWorkoutLog(
   userId: string,
@@ -23,39 +161,24 @@ export async function saveWorkoutLog(
 ) {
   const parsed = RunningLogInputSchema.safeParse(args.actual);
   if (!parsed.success) {
-    throw new ServiceError(
-      "VALIDATION",
-      parsed.error.issues[0]?.message ?? "invalid log",
-    );
+    throw validation(parsed.error.issues[0]?.message ?? "invalid log");
   }
   if (!args.clientMutationId) {
-    throw new ServiceError("VALIDATION", "clientMutationId is required");
+    throw validation("clientMutationId is required");
   }
   const actual = parsed.data;
   try {
     return await db.transaction(async (tx) => {
-      const [existing] = await tx
-        .select()
-        .from(workoutLogs)
-        .where(
-          and(
-            eq(workoutLogs.userId, userId),
-            eq(workoutLogs.clientMutationId, args.clientMutationId),
-          ),
-        )
-        .limit(1);
+      const existing = await findByMutationId(
+        tx,
+        userId,
+        args.clientMutationId,
+      );
       // Retry with the same id returns the original row as-is; never restores.
       if (existing) return { log: existing, deduped: true };
 
-      const [profile] = await tx
-        .select()
-        .from(userProfiles)
-        .where(eq(userProfiles.userId, userId))
-        .limit(1);
-      assertNotFuture(
-        actual.performedDate,
-        todayInTimeZone(profile?.timezone ?? "Asia/Bangkok"),
-      );
+      const timezone = await profileTimezone(tx, userId);
+      assertNotFuture(actual.performedDate, todayInTimeZone(timezone));
 
       const [master] = await tx
         .select()
@@ -68,56 +191,18 @@ export async function saveWorkoutLog(
 
       let plannedSnapshot: Record<string, unknown> | null = null;
       if (args.planItemId) {
-        // Lock the plan row and its week so a concurrent plan move/delete
-        // cannot race this save (§13). Single week: no lock-order hazard.
-        const [item] = await tx
-          .select()
-          .from(planItems)
-          .where(
-            and(
-              eq(planItems.id, args.planItemId),
-              isNull(planItems.deletedAt),
-            ),
-          )
-          .limit(1)
-          .for("update");
-        if (!item) throw new ServiceError("NOT_FOUND", "plan not found");
-        const [day] = await tx
-          .select()
-          .from(dailyPlans)
-          .where(eq(dailyPlans.id, item.dailyPlanId))
-          .limit(1);
-        const [week] = day
-          ? await tx
-              .select()
-              .from(weeklyPlans)
-              .where(eq(weeklyPlans.id, day.weeklyPlanId))
-              .limit(1)
-              .for("update")
-          : [];
-        if (!day || !week || week.userId !== userId) {
-          throw new ServiceError("NOT_FOUND", "plan not found");
-        }
-        if (item.activityType !== "RUNNING") {
-          throw new ServiceError("CONFLICT", "plan is not a running session");
-        }
-        const [clash] = await tx
-          .select()
-          .from(workoutLogs)
-          .where(
-            and(
-              eq(workoutLogs.planItemId, item.id),
-              isNull(workoutLogs.deletedAt),
-            ),
-          )
-          .limit(1);
-        if (clash) {
-          // Same mutation id, seen late (READ COMMITTED): our own retry.
-          if (clash.clientMutationId === args.clientMutationId) {
-            return { log: clash, deduped: true };
-          }
-          throw new ServiceError("CONFLICT", "plan already has an active log");
-        }
+        const { item, day } = await lockOwnedPlan(
+          tx,
+          userId,
+          args.planItemId,
+          "RUNNING",
+        );
+        const late = await assertNoActiveLog(
+          tx,
+          item.id,
+          args.clientMutationId,
+        );
+        if (late) return late;
         plannedSnapshot = {
           planItemId: item.id,
           date: day.date,
@@ -125,12 +210,7 @@ export async function saveWorkoutLog(
           runningWorkoutCode: item.runningWorkoutCode,
           runningTarget: item.runningTarget,
         };
-        if (item.planState === "SKIPPED") {
-          await tx
-            .update(planItems)
-            .set({ planState: "SCHEDULED", skipReason: null, updatedAt: new Date() })
-            .where(eq(planItems.id, item.id));
-        }
+        await unskip(tx, item);
       }
 
       const [log] = await tx
@@ -142,10 +222,14 @@ export async function saveWorkoutLog(
           activityType: "RUNNING",
           runningWorkoutCode: master.code,
           performedDate: actual.performedDate,
+          startedAt: actual.startTime
+            ? zonedTimeToUtc(actual.performedDate, actual.startTime, timezone)
+            : null,
           outcome: actual.outcome,
           distanceM: actual.distanceM,
           movingDurationSec: actual.movingDurationSec,
           elapsedDurationSec: actual.elapsedDurationSec ?? null,
+          avgHeartRate: actual.avgHeartRate ?? null,
           rpe: actual.rpe ?? null,
           feeling: actual.feeling ?? null,
           note: actual.note ?? null,
@@ -158,32 +242,178 @@ export async function saveWorkoutLog(
         })
         .returning();
       if (!log) throw new ServiceError("CONFLICT", "log insert failed");
+      // Totals stay user-typed; splits are ordered freeform reference (§6).
+      if (actual.splits && actual.splits.length > 0) {
+        await tx.insert(actualRunningSplits).values(
+          actual.splits.map((s, index) => ({
+            workoutLogId: log.id,
+            splitIndex: index,
+            distanceM: s.distanceM ?? null,
+            durationSec: s.durationSec ?? null,
+          })),
+        );
+      }
       return { log, deduped: false };
     });
   } catch (err) {
-    // A lost race surfaces as 23505 after our pre-checks passed: map it to
-    // the shaped outcome (§16) instead of leaking a raw DB error.
-    const pg = err as {
-      code?: string;
-      constraint?: string;
-      constraint_name?: string;
-    } | null;
-    if (pg && pg.code === "23505") {
-      // A lost race on either unique index: same mutation id means our own
-      // retry (dedupe), anything else is a genuine conflict.
-      const [row] = await db
+    return resolveUniqueViolation(userId, args.clientMutationId, err);
+  }
+}
+
+export async function saveStrengthLog(
+  userId: string,
+  args: { clientMutationId: string; planItemId?: string; actual: unknown },
+) {
+  const parsed = StrengthLogInputSchema.safeParse(args.actual);
+  if (!parsed.success) {
+    throw validation(parsed.error.issues[0]?.message ?? "invalid log");
+  }
+  if (!args.clientMutationId) {
+    throw validation("clientMutationId is required");
+  }
+  const actual = parsed.data;
+  const wantsPlannedLink = actual.exercises.some(
+    (e) => e.plannedExerciseId !== undefined,
+  );
+  if (wantsPlannedLink && !args.planItemId) {
+    throw validation("planned exercises need a plan");
+  }
+  try {
+    return await db.transaction(async (tx) => {
+      const existing = await findByMutationId(
+        tx,
+        userId,
+        args.clientMutationId,
+      );
+      if (existing) return { log: existing, deduped: true };
+
+      const timezone = await profileTimezone(tx, userId);
+      assertNotFuture(actual.performedDate, todayInTimeZone(timezone));
+
+      const codes = [...new Set(actual.exercises.map((e) => e.exerciseCode))];
+      const masters = await tx
         .select()
-        .from(workoutLogs)
-        .where(
-          and(
-            eq(workoutLogs.userId, userId),
-            eq(workoutLogs.clientMutationId, args.clientMutationId),
-          ),
-        )
-        .limit(1);
-      if (row) return { log: row, deduped: true };
-      throw new ServiceError("CONFLICT", "already saved; refetch and retry");
-    }
-    throw err;
+        .from(strengthExerciseMasters)
+        .where(inArray(strengthExerciseMasters.code, codes));
+      const byCode = new Map(masters.map((m) => [m.code, m]));
+      for (const code of codes) {
+        const master = byCode.get(code);
+        if (!master || !master.isActive) {
+          throw new ServiceError("NOT_FOUND", "exercise master not found");
+        }
+      }
+
+      let plannedSnapshot: Record<string, unknown> | null = null;
+      let plannedById = new Map<
+        string,
+        typeof plannedStrengthExercises.$inferSelect
+      >();
+      if (args.planItemId) {
+        const { item, day } = await lockOwnedPlan(
+          tx,
+          userId,
+          args.planItemId,
+          "STRENGTH",
+        );
+        const late = await assertNoActiveLog(
+          tx,
+          item.id,
+          args.clientMutationId,
+        );
+        if (late) return late;
+        const planned = await tx
+          .select()
+          .from(plannedStrengthExercises)
+          .where(eq(plannedStrengthExercises.planItemId, item.id))
+          .orderBy(asc(plannedStrengthExercises.sortOrder));
+        plannedById = new Map(planned.map((p) => [p.id, p]));
+        for (const e of actual.exercises) {
+          if (
+            e.plannedExerciseId !== undefined &&
+            !plannedById.has(e.plannedExerciseId)
+          ) {
+            throw new ServiceError("NOT_FOUND", "planned exercise not found");
+          }
+        }
+        plannedSnapshot = {
+          planItemId: item.id,
+          date: day.date,
+          title: item.title,
+          exercises: planned.map((p) => ({
+            plannedExerciseId: p.id,
+            exerciseCode: p.exerciseCode,
+            prescription: p.prescription,
+          })),
+        };
+        await unskip(tx, item);
+      }
+
+      const [log] = await tx
+        .insert(workoutLogs)
+        .values({
+          userId,
+          clientMutationId: args.clientMutationId,
+          planItemId: args.planItemId ?? null,
+          activityType: "STRENGTH",
+          performedDate: actual.performedDate,
+          startedAt: actual.startTime
+            ? zonedTimeToUtc(actual.performedDate, actual.startTime, timezone)
+            : null,
+          outcome: actual.outcome,
+          sessionDurationSec: actual.sessionDurationSec ?? null,
+          rpe: actual.rpe ?? null,
+          feeling: actual.feeling ?? null,
+          note: actual.note ?? null,
+          plannedSnapshot,
+        })
+        .returning();
+      if (!log) throw new ServiceError("CONFLICT", "log insert failed");
+
+      for (const [index, exercise] of actual.exercises.entries()) {
+        const master = byCode.get(exercise.exerciseCode);
+        const planned = exercise.plannedExerciseId
+          ? plannedById.get(exercise.plannedExerciseId)
+          : undefined;
+        const [inserted] = await tx
+          .insert(actualStrengthExercises)
+          .values({
+            workoutLogId: log.id,
+            plannedExerciseId: exercise.plannedExerciseId ?? null,
+            exerciseCode: exercise.exerciseCode,
+            variant: exercise.variant ?? planned?.variant ?? "STANDARD",
+            countMode: exercise.countMode,
+            sortOrder: index,
+            masterSnapshot: master
+              ? {
+                  code: master.code,
+                  nameTh: master.nameTh,
+                  nameEn: master.nameEn,
+                  muscleGroup: master.muscleGroup,
+                  repLabel: master.repLabel,
+                  guidance: master.guidance,
+                }
+              : null,
+          })
+          .returning({ id: actualStrengthExercises.id });
+        if (!inserted) {
+          throw new ServiceError("CONFLICT", "log insert failed");
+        }
+        await tx.insert(actualStrengthSets).values(
+          exercise.sets.map((s) => ({
+            actualExerciseId: inserted.id,
+            setIndex: s.setNumber,
+            side: s.side,
+            measurement: s.measurement,
+            reps: s.reps ?? null,
+            durationSec: s.durationSec ?? null,
+            loadKg: s.loadKg ?? null,
+            note: s.note ?? null,
+          })),
+        );
+      }
+      return { log, deduped: false };
+    });
+  } catch (err) {
+    return resolveUniqueViolation(userId, args.clientMutationId, err);
   }
 }

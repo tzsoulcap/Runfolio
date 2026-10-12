@@ -1,7 +1,14 @@
-import { and, desc, eq, gte, inArray, isNull, lte } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, lte } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
-import { dailyPlans, planItems, workoutLogs } from "@/lib/db/schema";
+import {
+  actualRunningSplits,
+  actualStrengthExercises,
+  actualStrengthSets,
+  dailyPlans,
+  planItems,
+  workoutLogs,
+} from "@/lib/db/schema";
 
 import { ServiceError } from "./errors";
 
@@ -79,10 +86,54 @@ export async function getLogDetail(userId: string, logId: string) {
   const plans = await loadPlans(
     log.planItemId ? [log.planItemId] : [],
   );
+  const splits =
+    log.activityType === "RUNNING"
+      ? await db
+          .select()
+          .from(actualRunningSplits)
+          .where(eq(actualRunningSplits.workoutLogId, log.id))
+          .orderBy(asc(actualRunningSplits.splitIndex))
+      : [];
+  const strength =
+    log.activityType === "STRENGTH"
+      ? await loadStrengthActuals(log.id)
+      : [];
   return {
     log,
     plan: log.planItemId ? (plans.get(log.planItemId) ?? null) : null,
+    splits,
+    strength,
   };
+}
+
+async function loadStrengthActuals(logId: string) {
+  const exercises = await db
+    .select()
+    .from(actualStrengthExercises)
+    .where(eq(actualStrengthExercises.workoutLogId, logId))
+    .orderBy(asc(actualStrengthExercises.sortOrder));
+  const exIds = exercises.map((e) => e.id);
+  const sets =
+    exIds.length === 0
+      ? []
+      : await db
+          .select()
+          .from(actualStrengthSets)
+          .where(inArray(actualStrengthSets.actualExerciseId, exIds))
+          .orderBy(
+            asc(actualStrengthSets.setIndex),
+            asc(actualStrengthSets.side),
+          );
+  const setsByExercise = new Map<string, typeof sets>();
+  for (const set of sets) {
+    const list = setsByExercise.get(set.actualExerciseId) ?? [];
+    list.push(set);
+    setsByExercise.set(set.actualExerciseId, list);
+  }
+  return exercises.map((exercise) => ({
+    exercise,
+    sets: setsByExercise.get(exercise.id) ?? [],
+  }));
 }
 
 async function loadPlans(planIds: string[]) {

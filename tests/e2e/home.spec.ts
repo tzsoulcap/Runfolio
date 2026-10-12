@@ -31,7 +31,9 @@ async function addEasyPlan(page: Page, note: string) {
 
 async function logRow(row: ReturnType<Page["locator"]>) {
   await row.getByRole("button", { name: "บันทึกผล", exact: true }).click();
-  await row.getByRole("button", { name: "ใช้ค่าแผน" }).click();
+  await row
+    .getByRole("button", { name: "ใช้ค่าเป้าหมายเป็นผลจริง" })
+    .click();
   await row.getByLabel("ระยะทางจริง (km)").fill("5");
   await row.getByLabel("นาที", { exact: true }).fill("38");
   await row

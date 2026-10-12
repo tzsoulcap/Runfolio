@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import type { DerivedPlanStatus } from "@/lib/domain/plan";
 import { LogForm } from "@/features/journal/log-form";
+import { StrengthLogForm } from "@/features/journal/strength-log-form";
 import {
   formatPrescriptionTh,
   formatStructuredDetail,
@@ -61,16 +62,13 @@ function StrengthLines({ item }: { item: PlanItemDTO }) {
   );
 }
 
-function targetKm(target: PlanItemDTO["runningTarget"]) {
-  return target?.kind === "DISTANCE" ? target.distanceM / 1000 : undefined;
-}
-
 export function PlanItemCard({
   item,
   day,
   index,
   dayLength,
   today,
+  strengthMasters,
   handle,
   overlay,
   onMove,
@@ -80,6 +78,7 @@ export function PlanItemCard({
   index: number;
   dayLength: number;
   today: string;
+  strengthMasters?: import("./add-strength-form").ExerciseOption[];
   handle: React.ReactNode;
   overlay?: boolean;
   onMove: (targetDate: string, targetIndex?: number) => void;
@@ -132,15 +131,19 @@ export function PlanItemCard({
               ดูผลที่บันทึก
             </Link>
           ) : item.activityType === "STRENGTH" ? (
-            <p className="text-base text-muted">
-              การบันทึกผล Strength จะมาในรอบถัดไป
-            </p>
+            <StrengthLogForm
+              planItemId={item.id}
+              planDate={day.date}
+              planned={item.exercises}
+              masters={strengthMasters ?? []}
+              today={today}
+            />
           ) : (
             <LogForm
               planItemId={item.id}
               planDate={day.date}
               runningWorkoutCode={item.runningWorkoutCode ?? "EASY_RUN"}
-              defaultDistanceKm={targetKm(item.runningTarget)}
+              runningTarget={item.runningTarget}
               today={today}
             />
           )}

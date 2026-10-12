@@ -63,6 +63,16 @@ export function formatTargetTh(
   return "Structured";
 }
 
+// Full one-line target: structured main plus its detail part (§6 plan ref).
+export function formatTargetFullTh(
+  target: RunningTarget | null | undefined,
+): string | null {
+  if (!target) return null;
+  const main = formatStructuredMain(target) ?? formatTargetTh(target);
+  const detail = formatStructuredDetail(target);
+  return detail ? `${main} · ${detail}` : main;
+}
+
 // Parses plan-form pace input: "m:ss" or plain seconds. Null when invalid.
 export function parsePaceInput(raw: string): number | null {
   const t = raw.trim();
@@ -140,6 +150,28 @@ export const MUSCLE_GROUP_TH: Record<MuscleGroup, string> = {
   CORE: "แกนกลาง",
 };
 
+export type ActualSide =
+  | "BOTH"
+  | "LEFT"
+  | "RIGHT"
+  | "ALTERNATING"
+  | "OUTBOUND"
+  | "RETURN";
+
+export const SIDE_TH: Record<ActualSide, string> = {
+  BOTH: "รวม",
+  LEFT: "ข้างซ้าย",
+  RIGHT: "ข้างขวา",
+  ALTERNATING: "สลับข้าง",
+  OUTBOUND: "ทิศไป",
+  RETURN: "ทิศกลับ",
+};
+
+// DB-backed lookup: unknown codes fall back to the raw value.
+export function sideTh(side: string): string {
+  return (SIDE_TH as Record<string, string>)[side] ?? side;
+}
+
 export const COUNT_MODE_TH: Record<CountMode, string> = {
   TOTAL: "รวมนับเดียว",
   PER_SIDE: "ต่อข้าง",
@@ -176,6 +208,27 @@ export function formatPrescriptionTh(
     parts.push(`พัก ${p.restSec} วิ`);
   }
   return parts.join(" · ");
+}
+
+export type LogOutcome = "COMPLETED" | "PARTIAL";
+
+export const OUTCOME_TH: Record<LogOutcome, string> = {
+  COMPLETED: "เสร็จแล้ว",
+  PARTIAL: "ทำบางส่วน",
+};
+
+// DB-backed lookup: unknown outcomes fall back to the raw value.
+export function outcomeTh(outcome: string): string {
+  return (OUTCOME_TH as Record<string, string>)[outcome] ?? outcome;
+}
+
+export function formatTimeTh(d: Date, timeZone: string): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+    timeZone,
+  }).format(d);
 }
 
 export const STATUS_TH: Record<DerivedPlanStatus, string> = {

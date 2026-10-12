@@ -6,6 +6,7 @@ import {
   mondayOf,
   todayInTimeZone,
   weekDates,
+  zonedTimeToUtc,
 } from "@/lib/domain/week";
 
 describe("mondayOf", () => {
@@ -53,5 +54,22 @@ describe("todayInTimeZone", () => {
     const now = new Date("2026-10-08T17:30:00.000Z");
     expect(todayInTimeZone("Asia/Bangkok", now)).toBe("2026-10-09");
     expect(todayInTimeZone("UTC", now)).toBe("2026-10-08");
+  });
+});
+
+describe("zonedTimeToUtc", () => {
+  it("combines date and wall time in the given zone", () => {
+    expect(
+      zonedTimeToUtc("2026-10-09", "06:30", "Asia/Bangkok").toISOString(),
+    ).toBe("2026-10-08T23:30:00.000Z");
+  });
+
+  it("resolves DST on both sides of the transition", () => {
+    expect(
+      zonedTimeToUtc("2026-07-09", "06:30", "America/New_York").toISOString(),
+    ).toBe("2026-07-09T10:30:00.000Z");
+    expect(
+      zonedTimeToUtc("2026-01-09", "06:30", "America/New_York").toISOString(),
+    ).toBe("2026-01-09T11:30:00.000Z");
   });
 });

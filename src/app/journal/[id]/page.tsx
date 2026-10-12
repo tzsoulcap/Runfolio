@@ -8,14 +8,22 @@ import {
   formatDateTh,
   formatDistanceM,
   formatHMS,
-  formatTargetTh,
+  formatPrescriptionTh,
+  formatTargetFullTh,
+  formatTimeTh,
   logDisplayName,
+  outcomeTh,
+  sideTh,
   weekdayTh,
 } from "@/lib/format";
-import { RunningTargetSchema } from "@/lib/domain/master";
+import {
+  RunningTargetSchema,
+  StrengthPrescriptionSchema,
+} from "@/lib/domain/master";
 import { paceLabelFor } from "@/lib/domain/metrics";
 import { ServiceError } from "@/lib/services/errors";
 import { getLogDetail } from "@/lib/services/journal";
+import { getOwnProfile } from "@/lib/services/profile";
 import { PagePlaceholder } from "@/components/page-placeholder";
 
 function planTargetText(plan: { runningTarget?: unknown } | null): string {
@@ -23,7 +31,116 @@ function planTargetText(plan: { runningTarget?: unknown } | null): string {
   const parsed = RunningTargetSchema.safeParse(
     (plan as { runningTarget?: unknown }).runningTarget,
   );
-  return parsed.success ? formatTargetTh(parsed.data) : "–";
+  if (!parsed.success) return "–";
+  return formatTargetFullTh(parsed.data) ?? "–";
+}
+
+type StrengthPlanned = {
+  date?: string;
+  title?: string;
+  exercises?: Array<{
+    plannedExerciseId?: string;
+    exerciseCode?: string;
+    prescription?: unknown;
+  }>;
+};
+
+function formatSetDose(
+  set: { measurement: string; reps: number | null; durationSec: number | null },
+  repLabel: string,
+): string {
+  if (set.reps === null && set.durationSec === null) return "ข้าม";
+  if (set.measurement === "TIME") return `${set.durationSec} วินาที`;
+  const unit = repLabel === "STEPS" ? "ก้าว" : "ครั้ง";
+  return `${set.reps} ${unit}`;
+}
+
+function formatSetLoad(loadKg: number | null): string | null {
+  if (loadKg === null) return null;
+  return loadKg === 0 ? "น้ำหนักตัว" : `${loadKg} kg`;
+}
+
+type StrengthActual = {
+  exercise: {
+    id: string;
+    exerciseCode: string;
+    plannedExerciseId: string | null;
+    masterSnapshot: unknown;
+  };
+  sets: Array<{
+    setIndex: number;
+    side: string;
+    measurement: string;
+    reps: number | null;
+    durationSec: number | null;
+    loadKg: number | null;
+  }>;
+};
+
+// Shared per-exercise actuals; planned lines appear only when the matching
+// planned snapshot entry is passed (from-plan logs).
+function StrengthActuals({
+  strength,
+  plannedExercises,
+}: {
+  strength: StrengthActual[];
+  plannedExercises?: StrengthPlanned["exercises"];
+}) {
+  return (
+    <div className="mt-2 space-y-3">
+      {strength.map(({ exercise, sets }) => {
+        const snapshot = exercise.masterSnapshot as {
+          nameTh?: string;
+          repLabel?: string;
+        } | null;
+        const snap = plannedExercises?.find(
+          (p) => p.plannedExerciseId === exercise.plannedExerciseId,
+        );
+        const parsed = StrengthPrescriptionSchema.safeParse(
+          snap?.prescription,
+        );
+        const repLabel = snapshot?.repLabel ?? "REPS";
+        const bySet = new Map<number, typeof sets>();
+        for (const s of sets) {
+          const list = bySet.get(s.setIndex) ?? [];
+          list.push(s);
+          bySet.set(s.setIndex, list);
+        }
+        return (
+          <div key={exercise.id}>
+            <h3 className="text-base font-semibold">
+              {snapshot?.nameTh ?? exercise.exerciseCode}
+            </h3>
+            {parsed.success && (
+              <p className="text-sm text-muted">
+                แผน{" "}
+                {formatPrescriptionTh(
+                  parsed.data,
+                  repLabel === "STEPS" ? "STEPS" : "REPS",
+                )}
+              </p>
+            )}
+            <ol className="mt-1 space-y-0.5 text-base">
+              {[...bySet].map(([setIndex, rows]) => (
+                <li key={setIndex}>
+                  เซ็ต {setIndex}:{" "}
+                  {rows
+                    .map((s) => {
+                      const dose = formatSetDose(s, repLabel);
+                      const load = formatSetLoad(s.loadKg);
+                      const label =
+                        rows.length > 1 ? `${sideTh(s.side)} ${dose}` : dose;
+                      return load ? `${label} · ${load}` : label;
+                    })
+                    .join(" / ")}
+                </li>
+              ))}
+            </ol>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 async function JournalDetail({ id }: { id: string }) {
@@ -40,14 +157,20 @@ async function JournalDetail({ id }: { id: string }) {
     }
     throw err;
   }
-  const { log, plan } = detail;
-  const name = logDisplayName(log);
+  const profile = await getOwnProfile(userId);
+  const timezone = profile?.timezone ?? "Asia/Bangkok";
+  const { log, plan, splits, strength } = detail;
+  const isStrength = log.activityType === "STRENGTH";
+  const name = isStrength ? (plan?.title ?? "เวท") : logDisplayName(log);
   const planned = log.plannedSnapshot as {
     date?: string;
     title?: string;
     runningTarget?: unknown;
+    exercises?: StrengthPlanned["exercises"];
   } | null;
-  const pace = paceLabelFor(log.distanceM, log.movingDurationSec);
+  const pace = isStrength
+    ? null
+    : paceLabelFor(log.distanceM, log.movingDurationSec);
 
   return (
     <div>
@@ -67,35 +190,101 @@ async function JournalDetail({ id }: { id: string }) {
         )}
       </p>
 
-      <dl className="mt-4 grid grid-cols-3 gap-2 rounded-card border border-line bg-paper p-4 text-center">
-        <div>
-          <dt className="text-sm text-muted">ระยะจริง</dt>
-          <dd className="text-xl font-semibold">
-            {formatDistanceM(log.distanceM)}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-sm text-muted">เวลาเคลื่อนไหว</dt>
-          <dd className="text-xl font-semibold">
-            {log.movingDurationSec !== null
-              ? formatHMS(log.movingDurationSec)
-              : "–"}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-sm text-muted">Pace</dt>
-          <dd className="text-xl font-semibold">
-            {pace !== null ? `${pace}/km` : "–"}
-          </dd>
-        </div>
-      </dl>
+      {isStrength ? (
+        <dl className="mt-4 grid grid-cols-3 gap-2 rounded-card border border-line bg-paper p-4 text-center">
+          <div>
+            <dt className="text-sm text-muted">ผล</dt>
+            <dd className="text-xl font-semibold">
+              {outcomeTh(log.outcome)}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-sm text-muted">เวลาเซสชัน</dt>
+            <dd className="text-xl font-semibold">
+              {log.sessionDurationSec !== null
+                ? formatHMS(log.sessionDurationSec)
+                : "–"}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-sm text-muted">เวลาเริ่ม</dt>
+            <dd className="text-xl font-semibold">
+              {log.startedAt ? formatTimeTh(log.startedAt, timezone) : "–"}
+            </dd>
+          </div>
+        </dl>
+      ) : (
+        <>
+          <dl className="mt-4 grid grid-cols-3 gap-2 rounded-card border border-line bg-paper p-4 text-center">
+            <div>
+              <dt className="text-sm text-muted">ระยะจริง</dt>
+              <dd className="text-xl font-semibold">
+                {formatDistanceM(log.distanceM)}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-sm text-muted">เวลาเคลื่อนไหว</dt>
+              <dd className="text-xl font-semibold">
+                {log.movingDurationSec !== null
+                  ? formatHMS(log.movingDurationSec)
+                  : "–"}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-sm text-muted">Pace</dt>
+              <dd className="text-xl font-semibold">
+                {pace !== null ? `${pace}/km` : "–"}
+              </dd>
+            </div>
+          </dl>
+          <dl className="mt-4 grid grid-cols-2 gap-2 rounded-card border border-line bg-paper p-4 sm:grid-cols-4">
+            <div>
+              <dt className="text-sm text-muted">ผล</dt>
+              <dd className="text-base font-semibold">
+                {outcomeTh(log.outcome)}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-sm text-muted">เวลารวมทั้งหมด</dt>
+              <dd className="text-base font-semibold">
+                {log.elapsedDurationSec !== null
+                  ? formatHMS(log.elapsedDurationSec)
+                  : "–"}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-sm text-muted">HR เฉลี่ย</dt>
+              <dd className="text-base font-semibold">
+                {log.avgHeartRate !== null ? `${log.avgHeartRate} bpm` : "–"}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-sm text-muted">เวลาเริ่ม</dt>
+              <dd className="text-base font-semibold">
+                {log.startedAt ? formatTimeTh(log.startedAt, timezone) : "–"}
+              </dd>
+            </div>
+          </dl>
+        </>
+      )}
 
       <section
         aria-label="แผนเทียบผลจริง"
         className="mt-4 rounded-card border border-line bg-paper p-4"
       >
         <h2 className="text-xl font-semibold">แผนเทียบผลจริง</h2>
-        {planned ? (
+        {isStrength ? (
+          planned?.exercises ? (
+            <StrengthActuals
+              strength={strength}
+              plannedExercises={planned.exercises}
+            />
+          ) : (
+            <p className="mt-2 text-base text-muted">
+              ผลนอกแผน ไม่ได้ผูกกับแผนซ้อม
+            </p>
+          )
+        ) : planned ? (
           <div className="mt-2 space-y-1 text-base">
             <p>
               แผน {planTargetText(planned)} / จริง{" "}
@@ -105,7 +294,8 @@ async function JournalDetail({ id }: { id: string }) {
               <p className="text-muted">
                 แผนวัน{weekdayTh(planned.date)}ที่ {formatDateTh(planned.date)}{" "}
                 · ทำจริงวัน{weekdayTh(log.performedDate)}ที่{" "}
-                {formatDateTh(log.performedDate)}
+                {formatDateTh(log.performedDate)} ·
+                ความสำเร็จนับกับสัปดาห์แผน ระยะสะสมนับวันที่ทำจริง
               </p>
             )}
           </div>
@@ -114,7 +304,61 @@ async function JournalDetail({ id }: { id: string }) {
             ผลนอกแผน ไม่ได้ผูกกับแผนซ้อม
           </p>
         )}
+        {isStrength &&
+          planned?.date &&
+          planned.date !== log.performedDate && (
+            <p className="mt-2 text-base text-muted">
+              แผนวัน{weekdayTh(planned.date)}ที่ {formatDateTh(planned.date)} ·
+              ทำจริงวัน{weekdayTh(log.performedDate)}ที่{" "}
+              {formatDateTh(log.performedDate)} ·
+              ความสำเร็จนับกับสัปดาห์แผน ผลงานเวทนับวันที่ทำจริง
+            </p>
+          )}
       </section>
+
+      {isStrength &&
+        (!planned?.exercises || planned.exercises.length === 0) &&
+        strength.length > 0 && (
+          <section
+            aria-label="ผลเวท"
+            className="mt-4 rounded-card border border-line bg-paper p-4"
+          >
+            <h2 className="text-xl font-semibold">ผลเวท</h2>
+            <StrengthActuals strength={strength} />
+          </section>
+        )}
+
+      {!isStrength && splits.length > 0 && (
+        <section
+          aria-label="รอบที่วัดได้"
+          className="mt-4 rounded-card border border-line bg-paper p-4"
+        >
+          <h2 className="text-xl font-semibold">รอบที่วัดได้</h2>
+          {planned && (
+            <p className="mt-1 text-sm text-muted">
+              แผนอ้างอิง: {planTargetText(planned)}
+            </p>
+          )}
+          <ol className="mt-2 space-y-1 text-base">
+            {splits.map((s, i) => (
+              <li key={s.id}>
+                รอบที่ {i + 1}:{" "}
+                {[
+                  s.distanceM !== null
+                    ? formatDistanceM(s.distanceM)
+                    : null,
+                  s.durationSec !== null ? formatHMS(s.durationSec) : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </li>
+            ))}
+          </ol>
+          <p className="mt-2 text-sm text-muted">
+            ยอดรวมใช้อ้างอิงเท่านั้น สถิติใช้ค่าที่กรอกด้านบน
+          </p>
+        </section>
+      )}
 
       {(log.rpe !== null || log.feeling || log.note) && (
         <section
