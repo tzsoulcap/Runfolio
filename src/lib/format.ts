@@ -242,6 +242,7 @@ export const MUSCLE_GROUP_TH: Record<MuscleGroup, string> = {
   GLUTES_HIPS: "ก้นและสะโพก",
   CALVES_ANKLES: "น่องและข้อเท้า",
   CORE: "แกนกลาง",
+  UPPER_BODY: "ช่วงบน",
 };
 
 export type ActualSide =

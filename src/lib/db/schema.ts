@@ -99,7 +99,7 @@ export const strengthExerciseMasters = pgTable("strength_exercise_masters", {
   (t) => [
     check(
       "strength_masters_muscle",
-      sql`${t.muscleGroup} IN ('SINGLE_LEG', 'GLUTES_HIPS', 'CALVES_ANKLES', 'CORE')`,
+      sql`${t.muscleGroup} IN ('SINGLE_LEG', 'GLUTES_HIPS', 'CALVES_ANKLES', 'CORE', 'UPPER_BODY')`,
     ),
     check("strength_masters_rep_label", sql`${t.repLabel} IN ('REPS', 'STEPS')`),
   ],

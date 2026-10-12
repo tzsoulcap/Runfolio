@@ -19,7 +19,7 @@ npm install
 cp .env.example .env.local
 # ใส่ค่าจริงใน .env.local (ห้าม commit): ดูหัวข้อ Environment
 npm run db:migrate   # ใช้ DIRECT_URL (5432)
-npm run db:seed      # master 10 running + 14 strength, รันซ้ำได้
+npm run db:seed      # master 10 running + 15 strength, รันซ้ำได้
 npm run db:verify    # ตรวจจำนวน master + RLS
 npm run dev          # http://localhost:3000
 ```

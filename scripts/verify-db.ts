@@ -26,6 +26,9 @@ async function main() {
     "@/lib/db/schema"
   );
   const { count } = await import("drizzle-orm");
+  const { RUNNING_MASTERS, STRENGTH_MASTERS } = await import(
+    "@/lib/db/seed-data"
+  );
 
   const rows = (await db.execute(sql`
     SELECT tablename, rowsecurity FROM pg_tables
@@ -49,7 +52,12 @@ async function main() {
     .select({ n: count() })
     .from(strengthExerciseMasters);
   console.log(`masters: running=${running?.n} strength=${strength?.n}`);
-  if (running?.n !== 10 || strength?.n !== 14) ok = false;
+  if (
+    running?.n !== RUNNING_MASTERS.length ||
+    strength?.n !== STRENGTH_MASTERS.length
+  ) {
+    ok = false;
+  }
 
   if (!ok) {
     console.error("VERIFY FAILED");

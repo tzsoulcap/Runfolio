@@ -347,7 +347,7 @@ REST อยู่ใน Library เพื่อให้เลือกสะด
 
 ### Strength exercise master
 
-เก็บ Code ทั้ง 14 รายการให้ตรงกับต้นทาง ใช้ค่า Default แบบจำนวนเดียวใน Form และเก็บช่วงตัวอย่างไว้เป็น Hint
+เก็บ Code ทั้ง 15 รายการ ใช้ค่า Default แบบจำนวนเดียวใน Form และเก็บช่วงตัวอย่างไว้เป็น Hint
 
 | Code | nameTh | nameEn |
 | --- | --- | --- |
@@ -365,6 +365,7 @@ REST อยู่ใน Library เพื่อให้เลือกสะด
 | SIDE_PLANK | แพลงก์ด้านข้าง | Side Plank |
 | DEAD_BUG | เดดบัก | Dead Bug |
 | BIRD_DOG | เบิร์ดด็อก | Bird Dog |
+| SINGLE_ARM_DUMBBELL_ROW | ดึงดัมเบลแขนเดียว | Single-Arm Dumbbell Row |
 
 | Code | Muscle group | Default ต่อเซ็ต | Count mode | หมายเหตุ |
 | --- | --- | --- | --- | --- |
@@ -382,6 +383,7 @@ REST อยู่ใน Library เพื่อให้เลือกสะด
 | SIDE_PLANK | CORE | 3 × 30 วินาที | PER_SIDE | Hint 30–45 วินาทีต่อข้าง |
 | DEAD_BUG | CORE | 3 × 12 ครั้งรวมสลับข้าง | TOTAL_ALTERNATING | ไม่เก็บ 12 ต่อข้าง |
 | BIRD_DOG | CORE | 3 × 10 ครั้ง | PER_SIDE | ข้างซ้ายและขวาแยกได้ |
+| SINGLE_ARM_DUMBBELL_ROW | UPPER_BODY | 3 × 10 ครั้ง | PER_SIDE | น้ำหนักเริ่มต้นว่าง ระบุน้ำหนักดัมเบลที่ใช้ในแต่ละข้าง |
 
 isUnilateral เก็บเป็นคุณสมบัติของท่า แต่ยังต้องมี countMode เพราะ “ทำสลับข้างรวม 20 ครั้ง” ต่างจาก “20 ครั้งต่อข้าง” ชื่อท่าไทยและอังกฤษต้องมีครบใน Seed พร้อม Description ที่อธิบายการใช้งาน ไม่เพิ่มคำกล่าวอ้างทางการแพทย์
 
@@ -536,7 +538,7 @@ export interface RunningWorkoutMaster {
 }
 
 export type MuscleGroup =
-  | 'SINGLE_LEG' | 'GLUTES_HIPS' | 'CALVES_ANKLES' | 'CORE';
+  | 'SINGLE_LEG' | 'GLUTES_HIPS' | 'CALVES_ANKLES' | 'CORE' | 'UPPER_BODY';
 
 export type CountMode =
   | 'TOTAL' | 'PER_SIDE' | 'TOTAL_ALTERNATING' | 'PER_DIRECTION';

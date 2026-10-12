@@ -41,6 +41,7 @@ const MUSCLE_ORDER: MuscleGroup[] = [
   "GLUTES_HIPS",
   "CALVES_ANKLES",
   "CORE",
+  "UPPER_BODY",
 ];
 
 const TIME_MODES: CountMode[] = ["TOTAL", "PER_SIDE"];

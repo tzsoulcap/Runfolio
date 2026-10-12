@@ -84,9 +84,12 @@ async function main() {
     .select({ n: count() })
     .from(strengthExerciseMasters);
   console.log(
-    `seeded running=${running?.n} strength=${strength?.n} (expected 10/14)`,
+    `seeded running=${running?.n} strength=${strength?.n} (expected ${RUNNING_MASTERS.length}/${STRENGTH_MASTERS.length})`,
   );
-  if (running?.n !== 10 || strength?.n !== 14) {
+  if (
+    running?.n !== RUNNING_MASTERS.length ||
+    strength?.n !== STRENGTH_MASTERS.length
+  ) {
     console.error("seed count mismatch");
     process.exit(1);
   }

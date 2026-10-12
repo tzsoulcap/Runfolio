@@ -88,12 +88,15 @@ describe.skipIf(!canRunDb)("strength sessions", () => {
     return { userId, week };
   }
 
-  it("lists all 14 active exercise masters", async () => {
+  it("lists all 15 active exercise masters", async () => {
     const { listStrengthMasters } = await import("@/lib/services/planner");
     await setupWeek();
     const masters = await listStrengthMasters();
-    expect(masters).toHaveLength(14);
-    expect(new Set(masters.map((m) => m.code)).size).toBe(14);
+    expect(masters).toHaveLength(15);
+    expect(new Set(masters.map((m) => m.code)).size).toBe(15);
+    expect(
+      masters.find((m) => m.code === "SINGLE_ARM_DUMBBELL_ROW"),
+    ).toMatchObject({ muscleGroup: "UPPER_BODY", isUnilateral: true });
   });
 
   it("saves one item with ordered sub-exercises, visible via listWeek", async () => {

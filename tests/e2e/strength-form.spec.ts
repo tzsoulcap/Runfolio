@@ -30,6 +30,68 @@ async function openStrengthForm(page: Page) {
   return section;
 }
 
+test("single-arm dumbbell row saves a plan and logs both sides", async ({
+  page,
+}) => {
+  await loginFresh(page);
+  await page.goto(`/plan#day-${todayBkk}`);
+  const section = await openStrengthForm(page);
+  const picker = section.getByLabel("เลือกท่า");
+  await expect(
+    picker.locator(
+      'optgroup[label="ช่วงบน"] option[value="SINGLE_ARM_DUMBBELL_ROW"]',
+    ),
+  ).toHaveText("ดึงดัมเบลแขนเดียว");
+  await picker.selectOption("SINGLE_ARM_DUMBBELL_ROW");
+  await section.getByRole("button", { name: "เพิ่มท่า", exact: true }).click();
+  await expect(section.getByLabel("เซ็ตท่าที่ 1")).toHaveValue("3");
+  await expect(section.getByLabel("ครั้งท่าที่ 1")).toHaveValue("10");
+  await expect(section.getByLabel("การนับท่าที่ 1")).toHaveValue("PER_SIDE");
+  await expect(section.getByLabel("น้ำหนัก (kg)ท่าที่ 1")).toHaveValue("");
+  await section.getByLabel("น้ำหนัก (kg)ท่าที่ 1").fill("8");
+
+  const note = `e2e-dumbbell-row-${Date.now()}`;
+  await section.getByLabel("หมายเหตุ", { exact: true }).fill(note);
+  await section
+    .getByRole("button", { name: "เพิ่มแผน Strength", exact: true })
+    .click();
+  const row = section.locator("article", { hasText: note });
+  await row.getByRole("button", { name: "ตัวเลือก" }).click();
+  await row.getByRole("menuitem", { name: "ดูรายละเอียดแผน" }).click();
+  await expect(row).toContainText("ดึงดัมเบลแขนเดียว");
+  await expect(row).toContainText("3 เซ็ต × 10 ครั้งต่อข้าง");
+  await expect(row).toContainText("8 kg");
+  await row.getByRole("button", { name: "ปิดรายละเอียด", exact: true }).click();
+
+  await row.getByRole("button", { name: "บันทึกเวท", exact: true }).click();
+  const form = row.getByRole("form", { name: "ฟอร์มบันทึกเวท" });
+  await expect(
+    form.getByLabel("เพิ่มท่านอกแผน").locator('option[value="SINGLE_ARM_DUMBBELL_ROW"]'),
+  ).toHaveText("ดึงดัมเบลแขนเดียว · Single-Arm Dumbbell Row");
+  for (const side of ["ข้างซ้าย", "ข้างขวา"]) {
+    const doses = form.getByLabel(`${side} ครั้ง`, { exact: true });
+    await expect(doses).toHaveCount(3);
+    for (const dose of await doses.all()) await dose.fill("10");
+  }
+  const loads = form.getByLabel("น้ำหนักภายนอกรวม kg", { exact: true });
+  for (const load of await loads.all()) {
+    await load.fill("8");
+  }
+  await form.getByRole("button", { name: "บันทึกผลเวท", exact: true }).click();
+  const detail = row.getByRole("link", { name: "ดูผลที่บันทึก", exact: true });
+  await expect(detail).toBeVisible();
+  await detail.click();
+  await expect(page).toHaveURL(/\/journal\//);
+  await expect(
+    page.getByRole("heading", { name: "ดึงดัมเบลแขนเดียว", exact: true }),
+  ).toBeVisible();
+  for (let set = 1; set <= 3; set += 1) {
+    const actual = page.locator("li").filter({ hasText: `เซ็ต ${set}:` });
+    await expect(actual).toContainText("ข้างซ้าย 10 ครั้ง · 8 kg");
+    await expect(actual).toContainText("ข้างขวา 10 ครั้ง · 8 kg");
+  }
+});
+
 test("strength session saves with reorder and validates sets", async ({
   page,
 }) => {

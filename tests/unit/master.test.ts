@@ -231,10 +231,10 @@ describe("IntensityTargetSchema (§11)", () => {
 });
 
 describe("strength exercise masters", () => {
-  it("has all 14 codes", () => {
-    expect(STRENGTH_MASTERS).toHaveLength(14);
+  it("has all 15 codes", () => {
+    expect(STRENGTH_MASTERS).toHaveLength(15);
     const codes = new Set(STRENGTH_MASTERS.map((m) => m.code));
-    expect(codes.size).toBe(14);
+    expect(codes.size).toBe(15);
   });
 
   it("every master validates against the schema", () => {
@@ -283,8 +283,8 @@ describe("strength exercise masters", () => {
   });
 
   // §9 default table pin: measurement / count mode / dose per code.
-  it("all 14 defaults match the §9 table", () => {
-    const expected: Record<string, Record<string, number | string>> = {
+  it("all 15 defaults match the §9 table", () => {
+    const expected: Record<string, Record<string, number | string | null>> = {
       BULGARIAN_SPLIT_SQUAT: {
         measurement: "REPS",
         sets: 3,
@@ -359,8 +359,15 @@ describe("strength exercise masters", () => {
         reps: 10,
         countMode: "PER_SIDE",
       },
+      SINGLE_ARM_DUMBBELL_ROW: {
+        measurement: "REPS",
+        sets: 3,
+        reps: 10,
+        countMode: "PER_SIDE",
+        loadKg: null,
+      },
     };
-    expect(Object.keys(expected)).toHaveLength(14);
+    expect(Object.keys(expected)).toHaveLength(15);
     for (const m of STRENGTH_MASTERS) {
       expect(
         m.defaultPrescription,

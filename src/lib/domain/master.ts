@@ -181,6 +181,7 @@ export const MuscleGroupSchema = z.enum([
   "GLUTES_HIPS",
   "CALVES_ANKLES",
   "CORE",
+  "UPPER_BODY",
 ]);
 export type MuscleGroup = z.infer<typeof MuscleGroupSchema>;
 
