@@ -3,15 +3,19 @@ import { readFile } from "node:fs/promises";
 import { config } from "dotenv";
 import { expect, test, type Page } from "@playwright/test";
 
+import { getAdminClient } from "../../src/lib/supabase/admin";
+
 config({ path: ".env.local" });
 
-async function loginFresh(page: Page, tag: string): Promise<void> {
+async function loginFresh(page: Page, tag: string) {
   const secret = process.env.E2E_TEST_SECRET as string;
   const email = `e2e-loop-settings-${tag}${Date.now()}${Math.floor(Math.random() * 10000)}@example.com`;
   const login = await page.request.get(
     `/auth/test-login?secret=${encodeURIComponent(secret)}&email=${encodeURIComponent(email)}`,
   );
   expect(login.ok()).toBe(true);
+  const { userId } = (await login.json()) as { userId: string };
+  return { userId, email };
 }
 
 async function noOverflow(page: Page) {
@@ -22,6 +26,94 @@ async function noOverflow(page: Page) {
   );
   expect(overflow).toBeLessThanOrEqual(0);
 }
+
+test("account shows Google name and email, while a chosen profile name takes priority", async ({
+  page,
+}, testInfo) => {
+  const { userId, email } = await loginFresh(page, "identity");
+  const { error } = await getAdminClient().auth.admin.updateUserById(userId, {
+    user_metadata: { full_name: "Google Runner" },
+  });
+  expect(error).toBeNull();
+  // Mint a new session so the verified claims include the provider name.
+  const secret = process.env.E2E_TEST_SECRET as string;
+  const login = await page.request.get(
+    `/auth/test-login?secret=${encodeURIComponent(secret)}&email=${encodeURIComponent(email)}`,
+  );
+  expect(login.ok()).toBe(true);
+
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "สวัสดี Google Runner", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "ตั้งค่า", exact: true }),
+  ).toHaveText("G");
+  await page.getByRole("link", { name: "ตั้งค่า", exact: true }).click();
+  const account = page.getByRole("region", { name: "บัญชีที่เข้าสู่ระบบ" });
+  await expect(account.getByText("Google Runner", { exact: true })).toBeVisible();
+  await expect(account.getByText(email, { exact: true })).toBeVisible();
+  await expect(
+    account.getByRole("button", { name: "ออกจากระบบ", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByLabel("ชื่อที่แสดง")).toHaveValue("Google Runner");
+  await noOverflow(page);
+
+  await page.getByLabel("ชื่อที่แสดง").fill("Caps");
+  await page.getByRole("button", { name: "บันทึกโปรไฟล์", exact: true }).click();
+  await expect(page.getByText("บันทึกโปรไฟล์แล้ว")).toBeVisible();
+  const home =
+    testInfo.project.name === "mobile"
+      ? page.getByRole("link", { name: "Runfolio", exact: true })
+      : page.getByTestId("sidebar").getByRole("link", {
+          name: "วันนี้",
+          exact: true,
+        });
+  await home.click();
+  await expect(
+    page.getByRole("heading", { name: "สวัสดี Caps", exact: true }),
+  ).toBeVisible();
+});
+
+test("signing out clears the account and blocks protected pages", async ({
+  page,
+  context,
+}) => {
+  const { email } = await loginFresh(page, "logout");
+  await page.goto("/");
+  await page.getByRole("link", { name: "ตั้งค่า", exact: true }).click();
+  await expect(
+    page.getByRole("region", { name: "บัญชีที่เข้าสู่ระบบ" }).getByText(email, {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await context.setOffline(true);
+  await page.getByRole("button", { name: "ออกจากระบบ", exact: true }).click();
+  await expect(
+    page.getByText("เชื่อมต่อไม่ได้ ลองออกจากระบบอีกครั้ง", { exact: true }),
+  ).toBeVisible();
+  await expect(page).toHaveURL(/\/settings$/);
+  await context.setOffline(false);
+  await page.getByRole("button", { name: "ออกจากระบบ", exact: true }).click();
+  await expect(page).toHaveURL(/\/login(?:\?|$)/);
+  await expect(
+    page.getByRole("button", { name: "เข้าสู่ระบบด้วย Google", exact: true }),
+  ).toBeVisible();
+  const cookies = await context.cookies();
+  expect(
+    cookies.filter(
+      (cookie) => cookie.name.startsWith("sb-") && cookie.name.includes("auth-token"),
+    ),
+  ).toHaveLength(0);
+
+  await page.goBack();
+  await expect(
+    page.getByText("เข้าสู่ระบบเพื่อดูแผนซ้อมวันนี้", { exact: true }),
+  ).toBeVisible();
+  await page.goto("/settings");
+  await expect(page).toHaveURL(/\/login\?next=%2Fsettings/);
+  expect((await page.request.get("/api/export")).status()).toBe(401);
+});
 
 test("settings form saves and persists the profile", async ({ page }) => {
   await loginFresh(page, "form");

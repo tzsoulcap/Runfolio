@@ -1,12 +1,13 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
-import { Download, UserRound } from "lucide-react";
+import { Download, Mail, UserRound } from "lucide-react";
 
-import { getSessionUserId } from "@/lib/auth/session";
+import { getSessionUser } from "@/lib/auth/session";
 import { ensureUserProfile, getOwnProfile } from "@/lib/services/profile";
 import { ExportButton } from "@/features/settings/export-button";
 import { SettingsForm } from "@/features/settings/settings-form";
+import { SignOutButton } from "@/features/settings/sign-out-button";
 
 function SettingsFallback() {
   return (
@@ -19,33 +20,46 @@ function SettingsFallback() {
 
 async function SettingsContent() {
   await connection();
-  const userId = await getSessionUserId();
-  if (!userId) {
+  const user = await getSessionUser();
+  if (!user) {
     redirect("/login?next=%2Fsettings");
   }
-  const existing = await getOwnProfile(userId);
-  const profile = existing ?? (await ensureUserProfile(userId));
-  const displayName = profile.displayName?.trim() || "นักวิ่ง";
+  const existing = await getOwnProfile(user.id);
+  const profile = existing ?? (await ensureUserProfile(user.id));
+  const displayName = profile.displayName?.trim() || user.displayName;
   return (
     <div className="app-page">
       <h1 className="page-title">ตั้งค่า</h1>
       <p className="mt-1 text-sm text-muted">จัดการโปรไฟล์และข้อมูลการซ้อม</p>
 
-      <div className="mt-4 flex items-center gap-4 rounded-[18px] bg-[#f6f4ef] p-4">
-        <span
-          aria-hidden
-          className="flex size-14 shrink-0 items-center justify-center rounded-full bg-forest text-2xl font-medium text-lime"
-        >
-          {displayName[0]?.toUpperCase()}
-        </span>
-        <div className="min-w-0">
-          <p className="text-xs text-muted">โปรไฟล์ของคุณ</p>
-          <p className="mt-0.5 break-words text-xl font-semibold">
-            {displayName}
-          </p>
-          <p className="mt-0.5 text-xs text-muted">{profile.timezone}</p>
+      <section
+        aria-label="บัญชีที่เข้าสู่ระบบ"
+        className="mt-4 rounded-[18px] bg-[#f6f4ef] p-4"
+      >
+        <div className="flex items-center gap-3">
+          <span
+            aria-hidden
+            className="flex size-12 shrink-0 items-center justify-center rounded-full bg-forest text-xl font-medium text-lime"
+          >
+            {displayName[0]?.toUpperCase()}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs text-muted">บัญชีที่เข้าสู่ระบบ</p>
+            <p className="mt-0.5 break-words text-xl font-semibold">
+              {displayName}
+            </p>
+          </div>
         </div>
-      </div>
+        <p className="mt-3 flex items-start gap-2 text-sm text-muted">
+          <Mail className="mt-0.5 size-4 shrink-0" aria-hidden />
+          <span className="min-w-0 break-all">
+            {user.email ?? "ไม่พบอีเมลของบัญชีนี้"}
+          </span>
+        </p>
+        <div className="mt-4 border-t border-line pt-3">
+          <SignOutButton />
+        </div>
+      </section>
 
       <section aria-labelledby="profile-heading" className="surface mt-4">
         <h2
@@ -57,7 +71,7 @@ async function SettingsContent() {
         </h2>
         <div className="mt-4">
           <SettingsForm
-            initialDisplayName={profile.displayName}
+            initialDisplayName={profile.displayName ?? user.displayName}
             initialTimezone={profile.timezone}
           />
         </div>

@@ -4,7 +4,7 @@ import { Suspense, type ReactNode } from "react";
 import { connection } from "next/server";
 import "./globals.css";
 import { BottomNav, Header, Sidebar } from "@/components/nav";
-import { getSessionUserId } from "@/lib/auth/session";
+import { getSessionUser } from "@/lib/auth/session";
 import { getOwnProfile } from "@/lib/services/profile";
 
 const geist = Geist({
@@ -25,9 +25,9 @@ export const metadata: Metadata = {
 
 async function AvatarHeader() {
   await connection();
-  const userId = await getSessionUserId();
-  const profile = userId ? await getOwnProfile(userId) : null;
-  const name = profile?.displayName?.trim() ?? "";
+  const user = await getSessionUser();
+  const profile = user ? await getOwnProfile(user.id) : null;
+  const name = profile?.displayName?.trim() || user?.displayName || "";
   return <Header initial={name === "" ? null : name[0]!.toUpperCase()} />;
 }
 

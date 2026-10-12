@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { connection } from "next/server";
 
-import { getSessionUserId } from "@/lib/auth/session";
+import { getSessionUser } from "@/lib/auth/session";
 import {
   deriveStripDay,
   deriveTodayState,
@@ -34,8 +34,8 @@ function HomeFallback() {
 
 async function HomeContent() {
   await connection();
-  const userId = await getSessionUserId();
-  if (!userId) {
+  const user = await getSessionUser();
+  if (!user) {
     return (
       <div>
         <h1 className="text-3xl font-semibold sm:text-4xl">วันนี้</h1>
@@ -53,6 +53,7 @@ async function HomeContent() {
       </div>
     );
   }
+  const userId = user.id;
   const profile = await getOwnProfile(userId);
   const tz = profile?.timezone ?? "Asia/Bangkok";
   const today = todayInTimeZone(tz);
@@ -88,7 +89,7 @@ async function HomeContent() {
   const summary = summarizeWeek(days, rangeLogs);
   const strip = dates.map((d) => deriveStripDay(d, today, dayByDate.get(d)));
 
-  const displayName = profile?.displayName?.trim() || "นักวิ่ง";
+  const displayName = profile?.displayName?.trim() || user.displayName;
   return (
     <div className="mx-auto -mt-1 max-w-[640px]">
       <p className="px-0.5 text-[clamp(14px,3.5vw,16px)] text-muted">

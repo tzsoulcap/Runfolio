@@ -8,10 +8,33 @@ import {
   type UserProfileUpdate,
 } from "@/lib/services/profile";
 import { ServiceError } from "@/lib/services/errors";
+import { createClient } from "@/lib/supabase/server";
 
 export type SettingsActionResult =
   | { ok: true }
   | { ok: false; code: string; message: string };
+
+export async function signOutAction(): Promise<SettingsActionResult> {
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase.auth.signOut({ scope: "local" });
+    if (error) {
+      return {
+        ok: false,
+        code: "SIGN_OUT_FAILED",
+        message: "ออกจากระบบไม่สำเร็จ ลองอีกครั้ง",
+      };
+    }
+    revalidatePath("/", "layout");
+    return { ok: true };
+  } catch {
+    return {
+      ok: false,
+      code: "UNKNOWN",
+      message: "เชื่อมต่อไม่ได้ ลองออกจากระบบอีกครั้ง",
+    };
+  }
+}
 
 export async function updateProfileAction(
   input: UserProfileUpdate,
