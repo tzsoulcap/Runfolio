@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { formatPace, paceLabelFor, paceSecPerKm } from "@/lib/domain/metrics";
+import {
+  formatPace,
+  paceLabelFor,
+  paceSecPerKm,
+  sumSplits,
+} from "@/lib/domain/metrics";
 
 describe("paceSecPerKm", () => {
   it("weights pace by distance (spec §14 example: 6:40/km)", () => {
@@ -37,5 +42,25 @@ describe("paceLabelFor", () => {
     expect(paceLabelFor(5000, null)).toBeNull();
     expect(paceLabelFor(5000, 0)).toBeNull();
     expect(paceLabelFor(0, 600)).toBeNull();
+  });
+});
+
+describe("sumSplits", () => {
+  it("sums distance and duration independently (§6 reference total)", () => {
+    expect(
+      sumSplits([
+        { distanceM: 1000, durationSec: 420 },
+        { distanceM: 2000, durationSec: null },
+        { distanceM: null, durationSec: 300 },
+      ]),
+    ).toEqual({ distanceM: 3000, durationSec: 720 });
+  });
+
+  it("returns null per component when no split has it", () => {
+    expect(sumSplits([{ distanceM: 1000, durationSec: null }])).toEqual({
+      distanceM: 1000,
+      durationSec: null,
+    });
+    expect(sumSplits([])).toEqual({ distanceM: null, durationSec: null });
   });
 });

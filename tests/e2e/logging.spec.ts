@@ -87,7 +87,15 @@ test("running full log from plan: HR, elapsed, splits, partial", async ({
   await expect(page.getByText("150 bpm")).toBeVisible();
   await expect(page.getByText("รอบที่ 1: 1 km")).toBeVisible();
   await expect(page.getByText("รอบที่ 2: 2 km")).toBeVisible();
-  await expect(page.getByText("สถิติใช้ค่าที่กรอกด้านบน")).toBeVisible();
+  await expect(
+    page.getByText("รวมรอบ: 3 km เทียบ totals ที่กรอก 5 km · 38:00"),
+  ).toBeVisible();
+  await expect(
+    page.getByText(
+      "ยอดรวมรอบใช้อ้างอิงเท่านั้น สถิติใช้ totals ที่กรอกด้านบน",
+      { exact: true },
+    ),
+  ).toBeVisible();
   await expect(page.getByText(logNote)).toBeVisible();
   await noOverflow(page);
 });

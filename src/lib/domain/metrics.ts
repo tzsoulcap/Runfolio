@@ -24,3 +24,21 @@ export function paceLabelFor(
   if (distanceM === null || movingSec === null || movingSec <= 0) return null;
   return formatPace(paceSecPerKm(distanceM, movingSec));
 }
+
+// A measurable amount: distance, duration, or both (one split, or a sum).
+export type SplitAmount = {
+  distanceM: number | null;
+  durationSec: number | null;
+};
+
+// Splits reference total (§6): independent sums; a component is null when no
+// split carries it. Never feeds stats — totals stay user-typed.
+export function sumSplits(splits: Array<SplitAmount>): SplitAmount {
+  let distanceM: number | null = null;
+  let durationSec: number | null = null;
+  for (const s of splits) {
+    if (s.distanceM !== null) distanceM = (distanceM ?? 0) + s.distanceM;
+    if (s.durationSec !== null) durationSec = (durationSec ?? 0) + s.durationSec;
+  }
+  return { distanceM, durationSec };
+}

@@ -20,7 +20,11 @@ import {
   RunningTargetSchema,
   StrengthPrescriptionSchema,
 } from "@/lib/domain/master";
-import { paceLabelFor } from "@/lib/domain/metrics";
+import {
+  paceLabelFor,
+  type SplitAmount,
+  sumSplits,
+} from "@/lib/domain/metrics";
 import { ServiceError } from "@/lib/services/errors";
 import { getLogDetail } from "@/lib/services/journal";
 import { getOwnProfile } from "@/lib/services/profile";
@@ -58,6 +62,41 @@ function formatSetDose(
 function formatSetLoad(loadKg: number | null): string | null {
   if (loadKg === null) return null;
   return loadKg === 0 ? "น้ำหนักตัว" : `${loadKg} kg`;
+}
+
+function formatAmountBits(amount: SplitAmount): string[] {
+  return [
+    amount.distanceM !== null ? formatDistanceM(amount.distanceM) : null,
+    amount.durationSec !== null ? formatHMS(amount.durationSec) : null,
+  ].filter((b): b is string => b !== null);
+}
+
+// Splits sum next to user-typed totals (§6, spec line 275): the sum is
+// reference-only, stats always use totals.
+function SplitsTotal({
+  splits,
+  distanceM,
+  movingDurationSec,
+}: {
+  splits: Array<SplitAmount>;
+  distanceM: number | null;
+  movingDurationSec: number | null;
+}) {
+  const sum = sumSplits(splits);
+  const sumBits = formatAmountBits(sum);
+  const totalBits = formatAmountBits({
+    distanceM,
+    durationSec: movingDurationSec,
+  });
+  return (
+    <p className="mt-2 text-base">
+      รวมรอบ: {sumBits.join(" · ")} เทียบ totals ที่กรอก{" "}
+      {totalBits.join(" · ")}
+      <span className="block text-sm text-muted">
+        ยอดรวมรอบใช้อ้างอิงเท่านั้น สถิติใช้ totals ที่กรอกด้านบน
+      </span>
+    </p>
+  );
 }
 
 type StrengthActual = {
@@ -354,9 +393,11 @@ async function JournalDetail({ id }: { id: string }) {
               </li>
             ))}
           </ol>
-          <p className="mt-2 text-sm text-muted">
-            ยอดรวมใช้อ้างอิงเท่านั้น สถิติใช้ค่าที่กรอกด้านบน
-          </p>
+          <SplitsTotal
+            splits={splits}
+            distanceM={log.distanceM}
+            movingDurationSec={log.movingDurationSec}
+          />
         </section>
       )}
 
