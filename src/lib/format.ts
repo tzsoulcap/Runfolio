@@ -54,6 +54,11 @@ export function formatMonthTh(month: string): string {
   return `${MONTH_TH[(m ?? 1) - 1] ?? ""} ${y ?? ""}`;
 }
 
+// Compact day/month for chart axes ("09/02").
+export function formatDayMonth(dateStr: string): string {
+  return `${dateStr.slice(8, 10)}/${dateStr.slice(5, 7)}`;
+}
+
 export const GOAL_TYPE_TH: Record<string, string> = {
   FINISH: "จบการแข่งขัน",
   TARGET_TIME: "ทำเวลา",

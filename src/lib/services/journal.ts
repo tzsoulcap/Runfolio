@@ -228,6 +228,40 @@ export async function listLogsInRange(
     );
 }
 
+export type ProgressLog = {
+  activityType: string;
+  performedDate: string;
+  runningWorkoutCode: string | null;
+  distanceM: number | null;
+  movingDurationSec: number | null;
+};
+
+// Progress aggregates read active logs in a capped range (§14). The client
+// receives aggregates only, never the rows.
+export async function listProgressLogs(
+  userId: string,
+  from: string,
+  to: string,
+): Promise<ProgressLog[]> {
+  return db
+    .select({
+      activityType: workoutLogs.activityType,
+      performedDate: workoutLogs.performedDate,
+      runningWorkoutCode: workoutLogs.runningWorkoutCode,
+      distanceM: workoutLogs.distanceM,
+      movingDurationSec: workoutLogs.movingDurationSec,
+    })
+    .from(workoutLogs)
+    .where(
+      and(
+        eq(workoutLogs.userId, userId),
+        isNull(workoutLogs.deletedAt),
+        gte(workoutLogs.performedDate, from),
+        lte(workoutLogs.performedDate, to),
+      ),
+    );
+}
+
 export async function getLogDetail(userId: string, logId: string) {
   const [log] = await db
     .select()
