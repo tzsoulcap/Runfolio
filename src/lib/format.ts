@@ -54,6 +54,32 @@ export function formatMonthTh(month: string): string {
   return `${MONTH_TH[(m ?? 1) - 1] ?? ""} ${y ?? ""}`;
 }
 
+export const GOAL_TYPE_TH: Record<string, string> = {
+  FINISH: "จบการแข่งขัน",
+  TARGET_TIME: "ทำเวลา",
+};
+
+export const GOAL_STATUS_TH: Record<string, string> = {
+  ACTIVE: "กำลังทำ",
+  ACHIEVED: "สำเร็จแล้ว",
+  ARCHIVED: "เก็บแล้ว",
+};
+
+// Event countdown (§8): calendar days; past events say passed, never
+// auto-achieve.
+export function goalCountdownTh(days: number): string {
+  if (days > 0) return `อีก ${days} วัน`;
+  if (days === 0) return "แข่งวันนี้!";
+  return "ผ่านมาแล้ว";
+}
+
+export function goalDisplayName(goal: {
+  distanceCode: string;
+  eventName: string | null;
+}): string {
+  return goal.eventName ?? "เป้าหมาย";
+}
+
 export function logDisplayName(log: {
   masterSnapshot: Record<string, unknown> | null;
   runningWorkoutCode: string | null;

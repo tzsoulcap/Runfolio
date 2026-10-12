@@ -8,6 +8,7 @@ import {
   dailyPlans,
   plannedStrengthExercises,
   planItems,
+  raceGoals,
   runningWorkoutMasters,
   strengthExerciseMasters,
   userProfiles,
@@ -494,6 +495,12 @@ export async function deleteWorkoutLog(
       .update(workoutLogs)
       .set({ deletedAt: new Date(), updatedAt: new Date() })
       .where(eq(workoutLogs.id, log.id));
+    // A deleted result log clears goal links (§8) but never the user-set
+    // goal status.
+    await tx
+      .update(raceGoals)
+      .set({ resultWorkoutLogId: null, updatedAt: new Date() })
+      .where(eq(raceGoals.resultWorkoutLogId, log.id));
     return { planItemId: log.planItemId };
   });
 }

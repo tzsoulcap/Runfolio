@@ -11,6 +11,15 @@ import {
   updateStrengthLog,
   updateWorkoutLog,
 } from "@/lib/services/logging";
+import {
+  achieveGoal,
+  archiveGoal,
+  createGoal,
+  linkResultLog,
+  setPrimaryGoal,
+  unlinkResultLog,
+  updateGoal,
+} from "@/lib/services/goals";
 import { ServiceError } from "@/lib/services/errors";
 import {
   addPlanItem,
@@ -47,6 +56,7 @@ export type ActionResult =
       sortOrder?: number;
       itemsCopied?: number;
       templateId?: string;
+      goalId?: string;
     }
   | { ok: false; code: string; message: string; conflictKind?: ConflictKind };
 
@@ -69,7 +79,13 @@ function toResult(err: unknown): ActionResult {
                 ? "เซ็ตซ้ำกัน"
                 : msg.includes("planned exercises need a plan")
                   ? "ท่าจากแผนต้องผูกกับแผนซ้อม"
-                  : "ข้อมูลไม่ถูกต้อง";
+                  : msg.includes("only active goals can be primary")
+                    ? "ตั้งได้เฉพาะเป้าหมายที่ยัง active"
+                    : msg.includes("only race-day logs can be linked")
+                      ? "เชื่อมได้เฉพาะผล Race Day"
+                      : msg.includes("target time is required")
+                        ? "เป้าหมายแบบเวลาต้องมีเวลาเป้าหมาย"
+                        : "ข้อมูลไม่ถูกต้อง";
         return { ok: false, code: err.code, message };
       }
       case "CONFLICT": {
@@ -114,7 +130,9 @@ function toResult(err: unknown): ActionResult {
           code: err.code,
           message: err.message.includes("race goal")
             ? "ไม่พบเป้าหมายที่เลือก"
-            : err.message.includes("exercise master")
+            : err.message.includes("goal not found")
+              ? "ไม่พบเป้าหมาย"
+              : err.message.includes("exercise master")
               ? "ไม่พบท่าที่เลือก"
               : err.message.includes("source week")
                 ? "ไม่พบสัปดาห์ต้นทาง"
@@ -647,6 +665,136 @@ export async function undeleteLogAction(input: {
     const { log } = await undeleteWorkoutLog(userId, input.logId);
     revalidateLogs();
     return { ok: true, logId: log.id };
+  } catch (err) {
+    return toResult(err);
+  }
+}
+
+export type GoalFormInput = {
+  distanceCode: string;
+  goalType: "FINISH" | "TARGET_TIME";
+  eventName?: string;
+  eventDate?: string;
+  targetHours?: number;
+  targetMinutes?: number;
+  targetSeconds?: number;
+  isPrimary?: boolean;
+};
+
+function toGoalInput(input: GoalFormInput) {
+  const hasTarget =
+    input.targetHours !== undefined ||
+    input.targetMinutes !== undefined ||
+    input.targetSeconds !== undefined;
+  return {
+    distanceCode: input.distanceCode,
+    goalType: input.goalType,
+    eventName: nonEmpty(input.eventName),
+    eventDate: nonEmpty(input.eventDate),
+    targetTimeSec:
+      input.goalType === "TARGET_TIME" && hasTarget
+        ? (input.targetHours ?? 0) * 3600 +
+          (input.targetMinutes ?? 0) * 60 +
+          (input.targetSeconds ?? 0)
+        : undefined,
+  };
+}
+
+function revalidateGoals() {
+  revalidatePath("/goals");
+  revalidatePath("/plan");
+  revalidatePath("/");
+}
+
+export async function createGoalAction(
+  input: GoalFormInput,
+): Promise<ActionResult> {
+  try {
+    const userId = await requireUserId();
+    const { goal } = await createGoal(userId, toGoalInput(input), {
+      isPrimary: input.isPrimary,
+    });
+    revalidateGoals();
+    return { ok: true, goalId: goal.id };
+  } catch (err) {
+    return toResult(err);
+  }
+}
+
+export async function updateGoalAction(
+  input: { goalId: string } & GoalFormInput,
+): Promise<ActionResult> {
+  try {
+    const userId = await requireUserId();
+    const { goal } = await updateGoal(userId, input.goalId, toGoalInput(input));
+    revalidateGoals();
+    return { ok: true, goalId: goal.id };
+  } catch (err) {
+    return toResult(err);
+  }
+}
+
+export async function setPrimaryGoalAction(input: {
+  goalId: string;
+}): Promise<ActionResult> {
+  try {
+    const userId = await requireUserId();
+    await setPrimaryGoal(userId, input.goalId);
+    revalidateGoals();
+    return { ok: true };
+  } catch (err) {
+    return toResult(err);
+  }
+}
+
+export async function archiveGoalAction(input: {
+  goalId: string;
+}): Promise<ActionResult> {
+  try {
+    const userId = await requireUserId();
+    await archiveGoal(userId, input.goalId);
+    revalidateGoals();
+    return { ok: true };
+  } catch (err) {
+    return toResult(err);
+  }
+}
+
+export async function achieveGoalAction(input: {
+  goalId: string;
+}): Promise<ActionResult> {
+  try {
+    const userId = await requireUserId();
+    await achieveGoal(userId, input.goalId);
+    revalidateGoals();
+    return { ok: true };
+  } catch (err) {
+    return toResult(err);
+  }
+}
+
+export async function linkResultAction(input: {
+  goalId: string;
+  logId: string;
+}): Promise<ActionResult> {
+  try {
+    const userId = await requireUserId();
+    await linkResultLog(userId, input.goalId, input.logId);
+    revalidateGoals();
+    return { ok: true };
+  } catch (err) {
+    return toResult(err);
+  }
+}
+
+export async function unlinkResultAction(input: {
+  goalId: string;
+}): Promise<ActionResult> {
+  try {
+    const userId = await requireUserId();
+    await unlinkResultLog(userId, input.goalId);
+    revalidateGoals();
+    return { ok: true };
   } catch (err) {
     return toResult(err);
   }

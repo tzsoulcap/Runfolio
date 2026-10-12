@@ -9,6 +9,7 @@ import {
   formatDateTh,
   formatDistanceM,
   formatHMS,
+  goalCountdownTh,
   logDisplayName,
   weekdayTh,
 } from "@/lib/format";
@@ -102,12 +103,6 @@ export function WeekSummaryCard({ summary }: { summary: WeekSummary }) {
 
 type GoalRow = typeof raceGoals.$inferSelect;
 
-function countdownTh(days: number): string {
-  if (days > 0) return `อีก ${days} วัน`;
-  if (days === 0) return "แข่งวันนี้!";
-  return "จบไปแล้ว";
-}
-
 export function GoalCard({ goal, today }: { goal: GoalRow | null; today: string }) {
   return (
     <section aria-label="เป้าหมายหลัก">
@@ -141,7 +136,7 @@ export function GoalCard({ goal, today }: { goal: GoalRow | null; today: string 
           )}
           <p className="mt-0.5 text-base text-muted">
             {goal.eventDate
-              ? `${formatDateTh(goal.eventDate)} · ${countdownTh(countdownDays(goal.eventDate, today))}`
+              ? `${formatDateTh(goal.eventDate)} · ${goalCountdownTh(countdownDays(goal.eventDate, today))}`
               : "ยังไม่กำหนดวันแข่ง"}
           </p>
         </Link>
