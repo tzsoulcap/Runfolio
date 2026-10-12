@@ -54,6 +54,30 @@ export function formatMonthTh(month: string): string {
   return `${MONTH_TH[(m ?? 1) - 1] ?? ""} ${y ?? ""}`;
 }
 
+const dayMonthTh = new Intl.DateTimeFormat("th-TH-u-ca-gregory", {
+  day: "numeric",
+  month: "short",
+  timeZone: "UTC",
+});
+
+const monthShortTh = new Intl.DateTimeFormat("th-TH-u-ca-gregory", {
+  month: "short",
+  timeZone: "UTC",
+});
+
+// Prose day/month ("12 ต.ค.").
+export function formatDayMonthTh(dateStr: string): string {
+  return dayMonthTh.format(parseDateOnly(dateStr));
+}
+
+// Week-style ranges: "12–18 ต.ค.", or "28 ก.ย. – 4 ต.ค." across months.
+export function formatDayRange(from: string, to: string): string {
+  if (from.slice(0, 7) === to.slice(0, 7)) {
+    return `${Number(from.slice(8, 10))}–${Number(to.slice(8, 10))} ${monthShortTh.format(parseDateOnly(to))}`;
+  }
+  return `${formatDayMonthTh(from)} – ${formatDayMonthTh(to)}`;
+}
+
 // Compact day/month for chart axes ("09/02").
 export function formatDayMonth(dateStr: string): string {
   return `${dateStr.slice(8, 10)}/${dateStr.slice(5, 7)}`;
@@ -102,6 +126,11 @@ export function formatDistanceM(m: number | null): string {
   if (m === null) return "–";
   if (m >= 1000) return `${trimNum(m / 1000)} km`;
   return `${trimNum(m)} m`;
+}
+
+// Bare km number for stat blocks ("10 / 12 km" composes the unit once).
+export function formatKm(m: number): string {
+  return trimNum(m / 1000);
 }
 
 export function formatTargetTh(

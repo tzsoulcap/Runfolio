@@ -62,7 +62,9 @@ test("home shows today states from planner data", async ({ page }) => {
 
   // EMPTY: fresh user with no week data.
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "วันนี้", exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "สวัสดี นักวิ่ง", exact: true }),
+  ).toBeVisible();
   await expect(page.getByText("วันนี้ยังไม่มีแผน")).toBeVisible();
   await expect(page.getByRole("link", { name: "เพิ่มแผน" })).toBeVisible();
   await expect(page.getByRole("link", { name: "บันทึกนอกแผน" })).toBeVisible();
@@ -83,7 +85,7 @@ test("home shows today states from planner data", async ({ page }) => {
   await expect(
     page
       .getByRole("article")
-      .getByRole("link", { name: "บันทึก", exact: true }),
+      .getByRole("link", { name: "บันทึกการซ้อม" }),
   ).toBeVisible();
 
   // MULTI after a second plan.
@@ -95,7 +97,7 @@ test("home shows today states from planner data", async ({ page }) => {
 
   // Viewport gate: header + today + week-strip head visible without scroll.
   const h1Box = await page
-    .getByRole("heading", { name: "วันนี้", exact: true })
+    .getByRole("heading", { name: "สวัสดี นักวิ่ง", exact: true })
     .boundingBox();
   const stripHeadBox = await page
     .getByRole("heading", { name: "สัปดาห์นี้" })
@@ -120,11 +122,10 @@ test("home shows today states from planner data", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByText("ซ้อมครบแล้ววันนี้")).toBeVisible();
   await expect(page.getByRole("link", { name: "ดูบันทึกวันนี้" })).toBeVisible();
-  await expect(
-    page.getByText("วิ่งแล้ว 10 km / วางแผน 12 km"),
-  ).toBeVisible();
-  await expect(page.getByText("สำเร็จ 2 / 2 เซสชัน")).toBeVisible();
-  await expect(page.getByText("Strength 0 ครั้ง")).toBeVisible();
+  const summary = page.locator('section[aria-label="ภาพรวมสัปดาห์"]');
+  await expect(summary.getByText("10 / 12 km")).toBeVisible();
+  await expect(summary.getByText("2 / 2")).toBeVisible();
+  await expect(summary.getByText("Strength", { exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "ดูทั้งหมด" })).toBeVisible();
   await noOverflow(page);
 });

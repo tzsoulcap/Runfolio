@@ -85,6 +85,8 @@ async function HomeContent() {
     plannedStartTime: item.plannedStartTime,
     note: item.note,
     planState: item.planState,
+    strengthCount:
+      item.activityType === "STRENGTH" ? item.exercises.length : undefined,
     log: item.log,
     status: item.status,
   }));
@@ -95,13 +97,16 @@ async function HomeContent() {
   const summary = summarizeWeek(days, rangeLogs);
   const strip = dates.map((d) => deriveStripDay(d, today, dayByDate.get(d)));
 
+  const displayName = profile?.displayName?.trim() || "นักวิ่ง";
   return (
     <div>
-      <h1 className="text-3xl font-semibold sm:text-4xl">วันนี้</h1>
-      <p className="mt-1 text-base text-muted">
+      <p className="text-base text-muted">
         วัน{weekdayTh(today)}ที่ {formatDateTh(today)} · {greetingTh(hourInTimeZone(tz))}
       </p>
-      <div className="mt-4 grid items-start gap-4 lg:grid-cols-3">
+      <h1 className="mt-1 text-3xl font-bold tracking-tight sm:text-4xl">
+        สวัสดี {displayName}
+      </h1>
+      <div className="mt-4 grid items-start gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 lg:row-start-1">
           <TodayHero state={state} today={today} />
         </div>

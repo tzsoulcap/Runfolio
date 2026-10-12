@@ -13,7 +13,7 @@ import { SettingsForm } from "@/features/settings/settings-form";
 function SettingsFallback() {
   return (
     <div>
-      <h1 className="text-3xl font-semibold sm:text-4xl">ตั้งค่า</h1>
+      <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">ตั้งค่า</h1>
       <p className="mt-2 text-base text-muted">กำลังโหลดการตั้งค่า…</p>
     </div>
   );
@@ -29,7 +29,7 @@ async function SettingsContent() {
   const profile = existing ?? (await ensureUserProfile(userId));
   return (
     <div className="max-w-2xl">
-      <h1 className="text-3xl font-semibold sm:text-4xl">ตั้งค่า</h1>
+      <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">ตั้งค่า</h1>
 
       <section
         aria-labelledby="profile-heading"

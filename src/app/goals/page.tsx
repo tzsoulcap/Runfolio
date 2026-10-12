@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
+import { Target } from "lucide-react";
 
 import { getSessionUserId } from "@/lib/auth/session";
 import {
@@ -20,7 +21,7 @@ import { GoalForm } from "@/features/goals/goal-form";
 function GoalsFallback() {
   return (
     <div>
-      <h1 className="text-3xl font-semibold sm:text-4xl">เป้าหมาย</h1>
+      <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">เป้าหมาย</h1>
       <p className="mt-2 text-base text-muted">กำลังโหลดเป้าหมาย…</p>
     </div>
   );
@@ -42,14 +43,15 @@ function GoalListItem({ goal, today }: { goal: GoalRow; today: string }) {
     <li>
       <Link
         href={`/goals/${goal.id}`}
-        className="flex min-h-11 items-center justify-between gap-3 px-4 py-3"
+        className="flex min-h-11 items-center gap-3 px-4 py-3"
       >
-        <span>
+        <Target className="size-5 shrink-0 text-forest" aria-hidden />
+        <span className="min-w-0 flex-1">
           <span className="text-base font-semibold">
             {goalDisplayName(goal)} {goal.distanceCode}
           </span>
           {goal.isPrimary && !done && (
-            <span className="ml-2 rounded-full bg-forest px-2 py-0.5 text-sm text-ivory">
+            <span className="ml-2 rounded-full bg-lime px-2 py-0.5 text-sm font-semibold text-charcoal">
               หลัก
             </span>
           )}
@@ -64,7 +66,7 @@ function GoalListItem({ goal, today }: { goal: GoalRow; today: string }) {
               ` · ${formatDateTh(goal.eventDate)}${done ? "" : ` · ${goalCountdownTh(countdownDays(goal.eventDate, today))}`}`}
           </span>
         </span>
-        <span aria-hidden="true" className="text-muted">
+        <span aria-hidden="true" className="shrink-0 text-muted">
           ›
         </span>
       </Link>
@@ -88,7 +90,7 @@ async function GoalsContent() {
 
   return (
     <div>
-      <h1 className="text-3xl font-semibold sm:text-4xl">เป้าหมาย</h1>
+      <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">เป้าหมาย</h1>
       <div className="mt-4">
         <GoalForm idSuffix="new" />
       </div>

@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { formatPrescriptionTh, parsePaceInput } from "@/lib/format";
+import {
+  formatDayMonthTh,
+  formatDayRange,
+  formatKm,
+  formatPrescriptionTh,
+  parsePaceInput,
+} from "@/lib/format";
 
 describe("parsePaceInput", () => {
   it("parses m:ss and plain seconds", () => {
@@ -82,5 +88,32 @@ describe("formatPrescriptionTh", () => {
         loadKg: 0,
       }),
     ).toBe("3 เซ็ต × 20 ครั้ง · น้ำหนักตัว");
+  });
+});
+
+describe("formatKm", () => {
+  it("trims whole and fractional kilometers", () => {
+    expect(formatKm(10000)).toBe("10");
+    expect(formatKm(26000)).toBe("26");
+    expect(formatKm(21097.5)).toBe("21.1");
+    expect(formatKm(0)).toBe("0");
+  });
+});
+
+describe("formatDayMonthTh", () => {
+  it("renders Thai short dates", () => {
+    expect(formatDayMonthTh("2026-10-12")).toBe("12 ต.ค.");
+  });
+});
+
+describe("formatDayRange", () => {
+  it("collapses same-month ranges", () => {
+    expect(formatDayRange("2026-10-12", "2026-10-18")).toBe("12–18 ต.ค.");
+  });
+
+  it("spells cross-month ranges in full", () => {
+    expect(formatDayRange("2026-09-28", "2026-10-04")).toBe(
+      "28 ก.ย. – 4 ต.ค.",
+    );
   });
 });

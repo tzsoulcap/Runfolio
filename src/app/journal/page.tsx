@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
+import { Dumbbell, Route } from "lucide-react";
 
 import { getSessionUserId } from "@/lib/auth/session";
 import {
@@ -105,7 +106,7 @@ function toQuery(params: Record<string, string | undefined>): string {
 function JournalFallback() {
   return (
     <div>
-      <h1 className="text-3xl font-semibold sm:text-4xl">บันทึก</h1>
+      <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">บันทึก</h1>
       <p className="mt-2 text-base text-muted">กำลังโหลดบันทึก…</p>
     </div>
   );
@@ -137,13 +138,18 @@ function TimelineList({ entries }: { entries: JournalEntry[] }) {
               const pace = isStrength
                 ? null
                 : paceLabelFor(log.distanceM, log.movingDurationSec);
+              const Icon = isStrength ? Dumbbell : Route;
               return (
                 <li key={log.id}>
                   <Link
                     href={`/journal/${log.id}`}
-                    className="flex min-h-11 items-center justify-between gap-3 px-4 py-3"
+                    className="flex min-h-11 items-center gap-3 px-4 py-3"
                   >
-                    <span>
+                    <Icon
+                      className={`size-5 shrink-0 ${isStrength ? "text-steel" : "text-forest"}`}
+                      aria-hidden
+                    />
+                    <span className="min-w-0 flex-1">
                       <span className="text-base font-semibold">{name}</span>
                       {!plan && (
                         <span className="ml-2 rounded-full border border-line px-2 py-0.5 text-sm text-muted">
@@ -174,7 +180,7 @@ function TimelineList({ entries }: { entries: JournalEntry[] }) {
                         </span>
                       )}
                     </span>
-                    <span aria-hidden="true" className="text-muted">
+                    <span aria-hidden="true" className="shrink-0 text-muted">
                       ›
                     </span>
                   </Link>
@@ -246,7 +252,7 @@ async function JournalContent({ searchParams }: { searchParams: SearchParams }) 
 
   return (
     <div>
-      <h1 className="text-3xl font-semibold sm:text-4xl">บันทึก</h1>
+      <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">บันทึก</h1>
       {deletedId && <UndoToast logId={deletedId} />}
       <section
         aria-label="บันทึกนอกแผน"

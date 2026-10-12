@@ -3,6 +3,8 @@ import { Geist, Noto_Sans_Thai } from "next/font/google";
 import { Suspense, type ReactNode } from "react";
 import "./globals.css";
 import { BottomNav, Header, Sidebar } from "@/components/nav";
+import { getSessionUserId } from "@/lib/auth/session";
+import { getOwnProfile } from "@/lib/services/profile";
 
 const geist = Geist({
   variable: "--font-geist",
@@ -16,9 +18,16 @@ const notoThai = Noto_Sans_Thai({
 });
 
 export const metadata: Metadata = {
-  title: "Running Journal",
+  title: "Runfolio",
   description: "สมุดซ้อมวิ่งส่วนตัว: วางแผน บันทึก และดูความต่อเนื่อง",
 };
+
+async function AvatarHeader() {
+  const userId = await getSessionUserId();
+  const profile = userId ? await getOwnProfile(userId) : null;
+  const name = profile?.displayName?.trim() ?? "";
+  return <Header initial={name === "" ? null : name[0]!.toUpperCase()} />;
+}
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
@@ -31,7 +40,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <Sidebar />
         </Suspense>
         <div className="min-h-dvh lg:pl-60">
-          <Header />
+          <Suspense fallback={<Header initial={null} />}>
+            <AvatarHeader />
+          </Suspense>
           <main className="mx-auto w-full max-w-[1180px] px-4 pt-4 pb-28 sm:px-5 lg:pt-6 lg:pb-12">
             {children}
           </main>

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useDroppable } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -7,6 +8,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { Moon, Plus } from "lucide-react";
 
 import { formatDateTh, weekdayTh } from "@/lib/format";
 import type { GoalOption } from "@/lib/services/goals";
@@ -131,23 +133,35 @@ export function DayColumn({
       aria-label={`วัน${weekdayTh(day.date)}ที่ ${formatDateTh(day.date)}`}
       className="scroll-mt-24 border-t border-line py-4 first:border-t-0 first:pt-0"
     >
-      <div className="flex items-baseline justify-between gap-3">
+      <div className="flex items-center justify-between gap-3">
         <h2 className="text-xl font-semibold">
           วัน{weekdayTh(day.date)}
           <span className="ml-2 text-base font-normal text-muted">
             {formatDateTh(day.date)}
           </span>
+          {day.date === today && (
+            <span className="ml-2 rounded-full bg-lime px-3 py-1 align-middle text-sm font-semibold text-charcoal">
+              วันนี้
+            </span>
+          )}
         </h2>
-        {day.date === today && (
-          <span className="shrink-0 rounded-full bg-forest px-3 py-1 text-sm text-ivory">
-            วันนี้
-          </span>
+        {!day.isRestDay && (
+          <Link
+            href={`#day-${day.date}-add`}
+            aria-label={`เพิ่มแผนวันที่ ${formatDateTh(day.date)}`}
+            className="flex size-11 shrink-0 items-center justify-center rounded-full text-charcoal transition-colors duration-200 hover:bg-forest/10"
+          >
+            <Plus className="size-5" aria-hidden />
+          </Link>
         )}
       </div>
 
       {day.isRestDay ? (
-        <div className="mt-2">
-          <p className="text-base text-muted">
+        <div className="mt-2 flex items-center gap-3 rounded-card border border-line bg-paper p-4">
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-forest/10">
+            <Moon className="size-5 text-forest" aria-hidden />
+          </span>
+          <p className="min-w-0 flex-1 text-base text-charcoal">
             วันพัก{day.note ? ` · ${day.note}` : ""}
           </p>
           <UnsetRestButton date={day.date} revision={revision} />
@@ -182,7 +196,7 @@ export function DayColumn({
               ))}
             </ol>
           </SortableContext>
-          <div className="flex flex-wrap gap-2">
+          <div id={`day-${day.date}-add`} className="flex scroll-mt-24 flex-wrap gap-2">
             <AddPlanForm
               date={day.date}
               masters={masters}

@@ -9,7 +9,7 @@ import { GoogleSignInButton, GoogleSignInFallback } from "./google-button";
 function LoginCard({ children }: { children: ReactNode }) {
   return (
     <section className="mx-auto max-w-md rounded-card border border-line bg-paper p-6 sm:p-8">
-      <h1 className="text-3xl font-semibold">Running Journal</h1>
+      <h1 className="text-3xl font-bold tracking-tight">Runfolio</h1>
       <p className="mt-2 text-base text-muted">
         สมุดซ้อมวิ่งส่วนตัว เข้าสู่ระบบเพื่อเริ่มใช้งาน
       </p>

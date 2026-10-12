@@ -31,7 +31,7 @@ function first(value: string | string[] | undefined): string | undefined {
 function ProgressFallback() {
   return (
     <div>
-      <h1 className="text-3xl font-semibold sm:text-4xl">สถิติ</h1>
+      <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">สถิติ</h1>
       <p className="mt-2 text-base text-muted">กำลังโหลดสถิติ…</p>
     </div>
   );
@@ -84,7 +84,7 @@ function PresetPill({
     <Link
       href={href}
       aria-current={current ? "page" : undefined}
-      className={`inline-flex h-11 items-center rounded-button px-5 text-base font-medium ${
+      className={`inline-flex h-11 items-center rounded-full px-5 text-base font-medium ${
         current
           ? "bg-forest text-ivory"
           : "border border-line bg-paper text-charcoal"
@@ -152,7 +152,7 @@ async function ProgressContent({ searchParams }: { searchParams: SearchParams })
 
   return (
     <div>
-      <h1 className="text-3xl font-semibold sm:text-4xl">สถิติ</h1>
+      <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">สถิติ</h1>
       <p className="mt-1 text-base text-muted">
         {formatDateTh(progress.effectiveFrom)} – {formatDateTh(progress.to)}
       </p>
@@ -334,7 +334,7 @@ async function ProgressContent({ searchParams }: { searchParams: SearchParams })
                   </span>
                   <span
                     aria-hidden="true"
-                    className="mt-1 w-full max-w-8 rounded-t bg-forest"
+                    className="mt-1 w-full max-w-8 rounded-t-full bg-forest"
                     style={{ height: `${pct}%` }}
                   />
                   <span className="mt-1 text-xs text-muted">

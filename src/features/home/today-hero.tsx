@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ChevronRight, Dumbbell, Moon, Route } from "lucide-react";
 
 import type { TodayItem, TodayState } from "@/lib/domain/home";
 import { paceLabelFor } from "@/lib/domain/metrics";
@@ -18,7 +19,11 @@ const secondaryBtn =
 
 function heroNumber(item: TodayItem): { main: string; detail: string | null } {
   if (item.activityType === "STRENGTH")
-    return { main: "Strength", detail: null };
+    return {
+      main:
+        item.strengthCount !== undefined ? `${item.strengthCount} ท่า` : "Strength",
+      detail: null,
+    };
   const t = item.runningTarget;
   if (!t) return { main: "–", detail: null };
   if (t.kind === "STRUCTURED")
@@ -29,50 +34,75 @@ function heroNumber(item: TodayItem): { main: string; detail: string | null } {
   return { main: formatTargetTh(t), detail: null };
 }
 
-function PlanItemHero({
-  item,
-  label,
-  planHref,
-}: {
-  item: TodayItem;
-  label: string | null;
-  planHref: string;
-}) {
-  const target = heroNumber(item);
-  return (
-    <article className="rounded-card border border-line bg-paper p-4">
-      {label && <p className="text-sm text-muted">{label}</p>}
-      <h2 className="mt-1 text-xl font-semibold">{item.title}</h2>
-      <p className="mt-1 text-3xl font-semibold sm:text-4xl">{target.main}</p>
-      {target.detail && <p className="mt-1 text-base text-muted">{target.detail}</p>}
-      {item.plannedStartTime && (
-        <p className="mt-1 text-base text-muted">
-          เริ่ม {item.plannedStartTime}
-        </p>
-      )}
-      {item.note && <p className="mt-1 text-base text-charcoal">{item.note}</p>}
-      <div className="mt-3">
-        <Link href={planHref} className={primaryBtn}>
-          บันทึก
-        </Link>
-      </div>
-    </article>
-  );
+function heroSub(item: TodayItem, detail: string | null): string | null {
+  if (detail) return detail;
+  if (item.plannedStartTime) return `เริ่ม ${item.plannedStartTime}`;
+  if (item.note) return item.note;
+  return null;
 }
 
 function CompactRow({ item, planHref }: { item: TodayItem; planHref: string }) {
+  const Icon = item.activityType === "STRENGTH" ? Dumbbell : Route;
   return (
     <li>
       <Link
         href={planHref}
-        className="flex min-h-11 items-center justify-between gap-3 px-4 py-2"
+        className="flex min-h-11 items-center gap-3 border-t border-ivory/15 px-1 py-3"
       >
-        <span className="text-base font-medium">{item.title}</span>
-        <span className="shrink-0 text-sm text-muted">
-          {heroNumber(item).main} · {STATUS_TH[item.status]}
+        <Icon className="size-5 shrink-0 text-ivory/80" aria-hidden />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-base font-medium text-ivory">
+            {item.title}
+          </span>
+          <span className="block text-sm text-ivory/70">
+            {heroNumber(item).main} · {STATUS_TH[item.status]}
+          </span>
         </span>
+        <ChevronRight className="size-5 shrink-0 text-ivory/70" aria-hidden />
       </Link>
     </li>
+  );
+}
+
+function PlanItemHero({
+  item,
+  others,
+  label,
+  planHref,
+}: {
+  item: TodayItem;
+  others: TodayItem[];
+  label: string | null;
+  planHref: string;
+}) {
+  const target = heroNumber(item);
+  const sub = heroSub(item, target.detail);
+  return (
+    <article className="rounded-[28px] bg-forest p-5 text-ivory sm:p-6">
+      {label && (
+        <p className="inline-flex rounded-full bg-lime px-3 py-1 text-sm font-semibold text-charcoal">
+          {label}
+        </p>
+      )}
+      <h2 className="mt-3 text-xl font-semibold">{item.title}</h2>
+      <p className="mt-1 text-5xl font-bold tracking-tight tabular-nums">
+        {target.main}
+      </p>
+      {sub && <p className="mt-1 text-base text-ivory/75">{sub}</p>}
+      <Link
+        href={planHref}
+        className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-button bg-lime text-base font-semibold text-charcoal"
+      >
+        บันทึกการซ้อม <span aria-hidden="true">→</span>
+      </Link>
+      {others.length > 0 && (
+        <ul className="mt-2">
+          {others.map((o) => (
+            <CompactRow key={o.id} item={o} planHref={planHref} />
+          ))}
+        </ul>
+      )}
+    </article>
   );
 }
 
@@ -91,22 +121,23 @@ function DoneAll({
   if (state.strengthCount > 0)
     parts.push(`Strength ${state.strengthCount} ครั้ง`);
   return (
-    <article className="rounded-card border border-line bg-paper p-4">
+    <article className="rounded-[28px] bg-forest p-5 text-ivory sm:p-6">
       <h2 className="text-xl font-semibold">
         {state.loggedCount > 0 ? "ซ้อมครบแล้ววันนี้" : "วันนี้ข้ามหมดแล้ว"}
       </h2>
       {state.loggedCount > 0 ? (
-        <p className="mt-1 text-base text-charcoal">
+        <p className="mt-1 text-base text-ivory/80">
           {parts.length > 0 ? parts.join(" · ") : "บันทึกแล้ว"}
         </p>
       ) : (
-        <p className="mt-1 text-base text-muted">ไม่มีผลบันทึกวันนี้</p>
+        <p className="mt-1 text-base text-ivory/70">ไม่มีผลบันทึกวันนี้</p>
       )}
-      <div className="mt-3">
-        <Link href="/journal" className={primaryBtn}>
-          ดูบันทึกวันนี้
-        </Link>
-      </div>
+      <Link
+        href="/journal"
+        className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-button bg-lime text-base font-semibold text-charcoal"
+      >
+        ดูบันทึกวันนี้ <span aria-hidden="true">→</span>
+      </Link>
     </article>
   );
 }
@@ -122,12 +153,12 @@ export function TodayHero({
   switch (state.kind) {
     case "EMPTY":
       return (
-        <article className="rounded-card border border-line bg-paper p-4">
+        <article className="rounded-card border border-line bg-paper p-5 sm:p-6">
           <h2 className="text-xl font-semibold">วันนี้ยังไม่มีแผน</h2>
           <p className="mt-1 text-base text-muted">
             วางแผนซ้อม หรือบันทึกผลนอกแผนได้เลย
           </p>
-          <div className="mt-3 flex flex-wrap gap-3">
+          <div className="mt-4 flex flex-wrap gap-3">
             <Link href={planHref} className={primaryBtn}>
               เพิ่มแผน
             </Link>
@@ -139,12 +170,17 @@ export function TodayHero({
       );
     case "REST":
       return (
-        <article className="rounded-card border border-line bg-paper p-4">
-          <h2 className="text-xl font-semibold">วันพัก</h2>
+        <article className="rounded-card border border-line bg-paper p-5 sm:p-6">
+          <div className="flex items-center gap-3">
+            <span className="flex size-11 items-center justify-center rounded-full bg-forest/10">
+              <Moon className="size-5 text-forest" aria-hidden />
+            </span>
+            <h2 className="text-xl font-semibold">วันพัก</h2>
+          </div>
           {state.note && (
-            <p className="mt-1 text-base text-charcoal">{state.note}</p>
+            <p className="mt-2 text-base text-charcoal">{state.note}</p>
           )}
-          <div className="mt-3">
+          <div className="mt-4">
             <Link href="/journal" className={secondaryBtn}>
               บันทึกนอกแผน
             </Link>
@@ -152,21 +188,17 @@ export function TodayHero({
         </article>
       );
     case "SINGLE":
-      return <PlanItemHero item={state.item} label={null} planHref={planHref} />;
+      return (
+        <PlanItemHero item={state.item} others={[]} label={null} planHref={planHref} />
+      );
     case "MULTI":
       return (
-        <div>
-          <PlanItemHero
-            item={state.hero}
-            label={`วันนี้ ${state.total} เซสชัน`}
-            planHref={planHref}
-          />
-          <ul className="mt-3 divide-y divide-line rounded-card border border-line bg-paper">
-            {state.others.map((item) => (
-              <CompactRow key={item.id} item={item} planHref={planHref} />
-            ))}
-          </ul>
-        </div>
+        <PlanItemHero
+          item={state.hero}
+          others={state.others}
+          label={`วันนี้ ${state.total} เซสชัน`}
+          planHref={planHref}
+        />
       );
     case "DONE_ALL":
       return <DoneAll state={state} />;

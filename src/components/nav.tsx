@@ -25,19 +25,31 @@ function isActive(pathname: string, href: string) {
   return href === "/" ? pathname === "/" : pathname.startsWith(href);
 }
 
-export function Header() {
+export function Header({ initial }: { initial: string | null }) {
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-ivory">
       <div className="mx-auto flex h-14 w-full max-w-[1180px] items-center justify-between px-4 sm:px-5 lg:justify-end">
-        <Link href="/" className="text-base font-semibold lg:hidden">
-          Running Journal
+        <Link href="/" className="text-lg font-bold tracking-tight lg:hidden">
+          Runfolio
         </Link>
         <Link
           href="/settings"
           aria-label="ตั้งค่า"
-          className="flex size-11 items-center justify-center rounded-full text-charcoal transition-colors duration-200 hover:bg-forest/10"
+          className="flex size-11 items-center justify-center rounded-full transition-colors duration-200 hover:bg-forest/10"
         >
-          <CircleUserRound className="size-7" strokeWidth={1.75} />
+          {initial ? (
+            <span
+              aria-hidden="true"
+              className="flex size-8 items-center justify-center rounded-full bg-forest text-base font-semibold text-ivory"
+            >
+              {initial}
+            </span>
+          ) : (
+            <CircleUserRound
+              className="size-7 text-charcoal"
+              strokeWidth={1.75}
+            />
+          )}
         </Link>
       </div>
     </header>
@@ -63,7 +75,7 @@ export function BottomNav() {
                 className={cn(
                   "flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-button px-1 py-1.5 text-xs transition-colors duration-200",
                   active
-                    ? "font-semibold text-forest"
+                    ? "font-semibold text-charcoal"
                     : "font-normal text-muted hover:text-charcoal",
                 )}
               >
@@ -76,7 +88,7 @@ export function BottomNav() {
                 <span
                   aria-hidden
                   className={cn(
-                    "size-1 rounded-full bg-forest",
+                    "h-0.5 w-6 rounded-full bg-charcoal",
                     active ? "opacity-100" : "opacity-0",
                   )}
                 />
@@ -94,8 +106,8 @@ export function Sidebar() {
   return (
     <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col border-r border-line bg-paper lg:flex">
       <div className="flex h-14 items-center border-b border-line px-5">
-        <Link href="/" className="text-base font-semibold">
-          Running Journal
+        <Link href="/" className="text-lg font-bold tracking-tight">
+          Runfolio
         </Link>
       </div>
       <nav

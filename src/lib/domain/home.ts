@@ -12,6 +12,7 @@ export type TodayItem = {
   plannedStartTime: string | null;
   note: string | null;
   planState: string;
+  strengthCount?: number;
   log: {
     id: string;
     outcome: string;

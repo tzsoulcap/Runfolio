@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Check, Dumbbell, Route } from "lucide-react";
 
 import type { DerivedPlanStatus } from "@/lib/domain/plan";
 import { LogForm } from "@/features/journal/log-form";
@@ -84,16 +85,36 @@ export function PlanItemCard({
   onMove: (targetDate: string, targetIndex?: number) => void;
 }) {
   const locked = item.log !== null;
+  const isStrength = item.activityType === "STRENGTH";
+  const tabCls =
+    item.status === "COMPLETED"
+      ? "bg-lime-deep"
+      : isStrength
+        ? "bg-steel"
+        : item.status === "PLANNED"
+          ? "bg-forest"
+          : item.status === "PARTIAL"
+            ? "bg-clay-deep"
+            : "bg-line-strong";
+  const Icon = isStrength ? Dumbbell : Route;
   return (
     <article
-      className={`rounded-card border border-line bg-paper p-4 ${overlay ? "shadow-lg" : ""}`}
+      className={`relative rounded-card border border-line bg-paper p-4 pl-6 ${overlay ? "shadow-lg" : ""}`}
     >
+      <span
+        aria-hidden="true"
+        className={`absolute top-4 bottom-4 left-2.5 w-1.5 rounded-full ${tabCls}`}
+      />
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-1">
           {handle}
+          <Icon
+            className={`mt-1 size-5 shrink-0 ${isStrength ? "text-steel" : "text-charcoal"}`}
+            aria-hidden
+          />
           <div className="min-w-0">
             <h3 className="text-lg font-semibold">{item.title}</h3>
-            {item.activityType === "STRENGTH" ? (
+            {isStrength ? (
               <StrengthLines item={item} />
             ) : (
               <TargetLine item={item} />
@@ -105,8 +126,11 @@ export function PlanItemCard({
         </div>
         <div className="flex shrink-0 flex-col items-end gap-2">
           <span
-            className={`rounded-full px-3 py-1 text-sm font-medium ${badgeCls[item.status]}`}
+            className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-medium ${badgeCls[item.status]}`}
           >
+            {item.status === "COMPLETED" && (
+              <Check className="size-4" aria-hidden strokeWidth={3} />
+            )}
             {STATUS_TH[item.status]}
           </span>
           {!overlay && (

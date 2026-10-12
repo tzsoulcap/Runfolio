@@ -3,8 +3,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 
+import { Plus } from "lucide-react";
+
 import { getSessionUserId } from "@/lib/auth/session";
-import { formatDateTh, weekdayTh } from "@/lib/format";
+import { formatDateTh, formatDayRange, formatDistanceM, weekdayTh } from "@/lib/format";
 import {
   addDays,
   DateOnlySchema,
@@ -12,6 +14,7 @@ import {
   todayInTimeZone,
   weekDates,
 } from "@/lib/domain/week";
+import { summarizeWeek } from "@/lib/domain/home";
 import { getOwnProfile } from "@/lib/services/profile";
 import { listGoals } from "@/lib/services/goals";
 import {
@@ -79,64 +82,91 @@ async function PlanContent({ week }: { week: string | undefined }) {
   }));
   const dayByDate = new Map(days.map((d) => [d.date, d]));
   const hasItems = days.some((d) => d.items.length > 0);
+  // Planned-only totals for the summary bar (actuals stay on Home/Progress).
+  const planned = summarizeWeek(days, []);
+  const runPlans = planned.totalItems - planned.strengthPlanned;
+  const addTarget = dates.includes(today) ? today : (dates[0] ?? monday);
 
   return (
     <div>
       <div className="flex items-start justify-between gap-3">
-        <h1 className="text-3xl font-semibold sm:text-4xl">แผนซ้อม</h1>
+        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">แผนซ้อม</h1>
         <PlanWeekMenu monday={monday} />
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <Link
           href={`/plan?week=${addDays(monday, -7)}`}
-          className="inline-flex h-11 items-center rounded-button border border-line bg-paper px-4 text-base"
+          className="inline-flex size-11 items-center justify-center rounded-full border border-line bg-paper text-xl"
           aria-label="สัปดาห์ก่อน"
         >
           ‹
         </Link>
-        <Link
-          href="/plan"
-          className="inline-flex h-11 items-center rounded-button border border-line bg-paper px-4 text-base"
-        >
-          สัปดาห์นี้
-        </Link>
+        <p className="mx-1 text-base font-semibold tabular-nums">
+          {formatDayRange(dates[0] ?? monday, dates[6] ?? monday)}
+        </p>
         <Link
           href={`/plan?week=${addDays(monday, 7)}`}
-          className="inline-flex h-11 items-center rounded-button border border-line bg-paper px-4 text-base"
+          className="inline-flex size-11 items-center justify-center rounded-full border border-line bg-paper text-xl"
           aria-label="สัปดาห์ถัดไป"
         >
           ›
         </Link>
-        <p className="ml-1 text-base text-muted">
-          {formatDateTh(dates[0] ?? monday)} –{" "}
-          {formatDateTh(dates[6] ?? monday)}
-        </p>
+        <Link
+          href="/plan"
+          className="inline-flex h-11 items-center rounded-full border border-line bg-paper px-5 text-base font-medium"
+        >
+          สัปดาห์นี้
+        </Link>
       </div>
 
-      <nav
-        aria-label="แถบสัปดาห์"
-        className="mt-4 grid grid-cols-7 gap-1 rounded-card border border-line bg-paper p-2"
-      >
-        {dates.map((d, i) => (
-          <a
-            key={d}
-            href={`#day-${d}`}
-            aria-label={`ไปวัน${weekdayTh(d)}ที่ ${formatDateTh(d)}`}
-            className={`flex min-h-11 flex-col items-center justify-center rounded-button text-base ${
-              d === today ? "bg-forest font-semibold text-ivory" : ""
-            }`}
-          >
-            <span className="text-sm">{WEEKDAY_SHORT[i]}</span>
-            <span>{Number(d.slice(8, 10))}</span>
-            {(dayByDate.get(d)?.items.length ?? 0) > 0 && (
-              <span
-                aria-hidden="true"
-                className={`size-1.5 rounded-full ${d === today ? "bg-ivory" : "bg-forest"}`}
-              />
-            )}
-          </a>
-        ))}
+      <nav aria-label="แถบสัปดาห์" className="mt-4 grid grid-cols-7 gap-1">
+        {dates.map((d, i) => {
+          const day = dayByDate.get(d);
+          const count = day?.items.length ?? 0;
+          return (
+            <a
+              key={d}
+              href={`#day-${d}`}
+              aria-label={`ไปวัน${weekdayTh(d)}ที่ ${formatDateTh(d)}`}
+              className={`flex min-h-16 flex-col items-center justify-center gap-1 rounded-2xl py-2 text-base ${
+                d === today ? "bg-lime font-semibold" : ""
+              }`}
+            >
+              <span className="text-sm text-muted">{WEEKDAY_SHORT[i]}</span>
+              <span className="font-medium tabular-nums">
+                {Number(d.slice(8, 10))}
+              </span>
+              {day?.isRestDay ? (
+                <span className="text-xs leading-none text-muted" aria-hidden="true">
+                  พัก
+                </span>
+              ) : count > 0 ? (
+                <span aria-hidden="true" className="size-2 rounded-full bg-lime-deep" />
+              ) : (
+                <span
+                  aria-hidden="true"
+                  className="size-2 rounded-full border border-line-strong"
+                />
+              )}
+            </a>
+          );
+        })}
       </nav>
+
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-base font-semibold tabular-nums">
+          {planned.plannedDistanceM > 0
+            ? formatDistanceM(planned.plannedDistanceM)
+            : "–"}{" "}
+          · วิ่ง {runPlans} · Strength {planned.strengthPlanned}
+        </p>
+        <Link
+          href={`#day-${addTarget}`}
+          className="inline-flex h-11 items-center gap-1.5 rounded-button bg-forest px-5 text-base font-medium text-ivory"
+        >
+          <Plus className="size-5" aria-hidden /> เพิ่มการซ้อม
+        </Link>
+      </div>
 
       {!hasItems && (
         <p className="mt-4 rounded-card border border-line bg-paper p-4 text-base text-muted">
