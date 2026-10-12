@@ -289,6 +289,44 @@ describe.skipIf(!canRunDb)("journal timeline", () => {
     expect((await listLogs(userId, {})).total).toBe(1);
   });
 
+  it("refuses to restore when the plan was re-logged (§19.9)", async () => {
+    const { listLogs } = await import("@/lib/services/journal");
+    const {
+      deleteWorkoutLog,
+      saveWorkoutLog,
+      undeleteWorkoutLog,
+    } = await import("@/lib/services/logging");
+    const userId = await setupUser();
+    const week = await setupWeek(userId);
+    const plan = await addRunPlan(userId, week.revision);
+    const first = await saveWorkoutLog(userId, {
+      clientMutationId: crypto.randomUUID(),
+      planItemId: plan.item.id,
+      actual: {
+        performedDate: WEDNESDAY,
+        runningWorkoutCode: "EASY_RUN",
+        distanceM: 5000,
+        movingDurationSec: 2280,
+      },
+    });
+    await deleteWorkoutLog(userId, first.log.id);
+    await saveWorkoutLog(userId, {
+      clientMutationId: crypto.randomUUID(),
+      planItemId: plan.item.id,
+      actual: {
+        performedDate: WEDNESDAY,
+        runningWorkoutCode: "EASY_RUN",
+        distanceM: 4000,
+        movingDurationSec: 1800,
+      },
+    });
+
+    await expect(undeleteWorkoutLog(userId, first.log.id)).rejects.toMatchObject(
+      { code: "CONFLICT" },
+    );
+    expect((await listLogs(userId, {})).total).toBe(1);
+  });
+
   it("updates running totals and replaces splits; plan link kept", async () => {
     const { getLogDetail } = await import("@/lib/services/journal");
     const { saveWorkoutLog, updateWorkoutLog } = await import(

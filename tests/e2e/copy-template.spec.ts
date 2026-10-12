@@ -137,6 +137,82 @@ test("copies last week over a rest day with convert choice", async ({
   ).toContainText("6 km");
 });
 
+test("F5: copy skips logs, template applies to a new week", async ({
+  page,
+}) => {
+  await loginFresh(page);
+  const stamp = Date.now();
+  const note = `e2e-f5-${stamp}`;
+  const name = `tpl-f5-${stamp}`;
+  const monday = mondayOfStr(todayBkk);
+  const prevMonday = addDaysStr(monday, -7);
+  const nextMonday = addDaysStr(monday, 7);
+  const weekday = weekdayIndex(todayBkk);
+  const sourceDate = addDaysStr(prevMonday, weekday);
+  const targetDate = addDaysStr(nextMonday, weekday);
+
+  // Source week carries a plan AND its log.
+  await page.goto(`/plan?week=${prevMonday}#day-${sourceDate}`);
+  await expect(page.getByRole("heading", { name: "แผนซ้อม" })).toBeVisible();
+  const sourceRow = await addRun(page, sourceDate, note);
+  await sourceRow.getByRole("button", { name: "บันทึกผล", exact: true }).click();
+  await sourceRow.getByLabel("ระยะทางจริง (km)").fill("5");
+  await sourceRow.getByLabel("นาที", { exact: true }).fill("38");
+  await sourceRow
+    .getByRole("button", { name: "บันทึกผลจริง", exact: true })
+    .click();
+  await expect(sourceRow).toContainText("เสร็จแล้ว");
+
+  // Copy into the current week: the plan arrives, the log does not.
+  await page.goto(`/plan#day-${todayBkk}`);
+  await expect(page.getByRole("heading", { name: "แผนซ้อม" })).toBeVisible();
+  await openMenu(page, "คัดลอกสัปดาห์");
+  const copySheet = page.getByRole("dialog", { name: "คัดลอกสัปดาห์" });
+  await copySheet
+    .getByLabel("สัปดาห์ต้นทาง (เลือกวันใดก็ได้ในสัปดาห์)")
+    .fill(sourceDate);
+  await copySheet.getByRole("button", { name: "ยืนยันการคัดลอก" }).click();
+  await expect(copySheet.getByText("คัดลอก 1 รายการแล้ว")).toBeVisible();
+  await copySheet.getByRole("button", { name: "ปิดคัดลอกสัปดาห์" }).click();
+  const copied = page
+    .locator(`#day-${todayBkk}`)
+    .locator("article", { hasText: note });
+  await expect(copied).toContainText("6 km");
+  await expect(
+    copied.getByRole("button", { name: "บันทึกผล", exact: true }),
+  ).toBeVisible();
+  await expect(
+    copied.getByRole("link", { name: "ดูผลที่บันทึก" }),
+  ).toHaveCount(0);
+
+  // Save the week as a template and apply it to next week.
+  await openMenu(page, "บันทึกเป็นเทมเพลต");
+  const saveSheet = page.getByRole("dialog", { name: "บันทึกเป็นเทมเพลต" });
+  await saveSheet.getByLabel("ชื่อเทมเพลต").fill(name);
+  await saveSheet.getByRole("button", { name: "บันทึกเทมเพลต" }).click();
+  await expect(saveSheet).toBeHidden();
+
+  await page.goto(`/plan?week=${nextMonday}#day-${targetDate}`);
+  await expect(page.getByRole("heading", { name: "แผนซ้อม" })).toBeVisible();
+  await openMenu(page, "เทมเพลตของฉัน");
+  const sheet = page.getByRole("dialog", { name: "เทมเพลตของฉัน" });
+  const entry = sheet.locator("li", { hasText: name });
+  await entry.getByRole("button", { name: "ใช้", exact: true }).click();
+  await sheet.getByRole("button", { name: "ยืนยันการใช้" }).click();
+  await expect(sheet.getByText("ใช้เทมเพลตแล้ว")).toBeVisible();
+  await sheet.getByRole("button", { name: "ปิดเทมเพลตของฉัน" }).click();
+
+  const applied = page
+    .locator(`#day-${targetDate}`)
+    .locator("article", { hasText: note });
+  await expect(applied).toContainText("6 km");
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "แผนซ้อม" })).toBeVisible();
+  await expect(
+    page.locator(`#day-${targetDate}`).locator("article", { hasText: note }),
+  ).toContainText("6 km");
+});
+
 test("template sheet saves, applies, renames, and deletes", async ({
   page,
 }) => {

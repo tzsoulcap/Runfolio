@@ -251,6 +251,61 @@ describe.skipIf(!canRunDb)("settings + export", () => {
     expect(JSON.stringify(data)).not.toMatch(/password|secret|token/i);
   });
 
+  it("exports only the caller's own rows (§19.10)", async () => {
+    const { addPlanItem } = await import("@/lib/services/planner");
+    const { saveWorkoutLog } = await import("@/lib/services/logging");
+    const { createGoal } = await import("@/lib/services/goals");
+    const { updateOwnProfile } = await import("@/lib/services/profile");
+    const { exportUserData } = await import("@/lib/services/export");
+    const userA = await setupUser();
+    const userB = await setupUser();
+    await updateOwnProfile(userA, {
+      displayName: "บัญชี A",
+      timezone: "Asia/Bangkok",
+    });
+    await updateOwnProfile(userB, {
+      displayName: "บัญชี B",
+      timezone: "Asia/Bangkok",
+    });
+    const week = await setupWeek(userA);
+    const plan = await addPlanItem(
+      userA,
+      {
+        date: WEDNESDAY,
+        activityType: "RUNNING",
+        runningWorkoutCode: "EASY_RUN",
+        runningTarget: { kind: "DISTANCE", distanceM: 6000 },
+        intensityTarget: { kind: "NONE" },
+      },
+      week.revision,
+    );
+    const { log } = await saveWorkoutLog(userA, {
+      clientMutationId: crypto.randomUUID(),
+      planItemId: plan.item.id,
+      actual: {
+        performedDate: WEDNESDAY,
+        runningWorkoutCode: "EASY_RUN",
+        distanceM: 5000,
+        movingDurationSec: 1800,
+      },
+    });
+    const { goal } = await createGoal(userA, {
+      distanceCode: "10K",
+      goalType: "FINISH",
+    });
+
+    const data = await exportUserData(userB);
+
+    expect(data.profile?.displayName).toBe("บัญชี B");
+    expect(data.weeklyPlans).toEqual([]);
+    expect(data.workoutLogs).toEqual([]);
+    expect(data.goals).toEqual([]);
+    expect(data.templates).toEqual([]);
+    expect(JSON.stringify(data)).not.toContain(log.id);
+    expect(JSON.stringify(data)).not.toContain(goal.id);
+    expect(JSON.stringify(data)).not.toContain(plan.item.id);
+  });
+
   it("exports an empty but valid payload for a fresh profile", async () => {
     const { updateOwnProfile } = await import("@/lib/services/profile");
     const { exportUserData } = await import("@/lib/services/export");

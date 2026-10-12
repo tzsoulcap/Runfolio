@@ -177,6 +177,37 @@ describe.skipIf(!canRunDb)("progress aggregates", () => {
     expect(progress.missed).toBe(1);
   });
 
+  it("aggregates typed totals, never split sums (§19.11)", async () => {
+    const { getProgress } = await import("@/lib/services/progress");
+    const userId = await setupUser();
+    await saveRun(userId, {
+      distanceM: 5000,
+      movingDurationSec: 1800,
+      splits: [
+        { splitIndex: 0, distanceM: 1000, durationSec: 400 },
+        { splitIndex: 1, distanceM: 600, durationSec: 300 },
+      ],
+    });
+
+    const progress = await getProgress(userId, {
+      from: MONDAY,
+      to: WEDNESDAY,
+      today: WEDNESDAY,
+    });
+    expect(progress.summary.runningActualM).toBe(5000);
+    expect(progress.summary.runningActualSec).toBe(1800);
+    expect(progress.paceRows).toEqual([
+      {
+        code: "EASY_RUN",
+        distanceM: 5000,
+        movingDurationSec: 1800,
+        paceSecPerKm: 360,
+      },
+    ]);
+    const weekBucket = progress.buckets.find((b) => b.monday === MONDAY);
+    expect(weekBucket?.distanceM).toBe(5000);
+  });
+
   it("returns zeros and clamps long ranges", async () => {
     const { getProgress } = await import("@/lib/services/progress");
     const userId = await setupUser();
