@@ -83,6 +83,16 @@ export const StrengthPlanDraftSchema = z.object({
 });
 export type StrengthPlanDraft = z.infer<typeof StrengthPlanDraftSchema>;
 
+// Move/reorder input (§5 DnD, §13): cross-week moves carry both revisions.
+export const MovePlanItemSchema = z.object({
+  planItemId: z.string().uuid("expected plan item uuid"),
+  targetDate: DateOnlySchema,
+  targetIndex: z.number().int().min(0),
+  expectedRevision: z.number().int().min(1),
+  expectedDestRevision: z.number().int().min(1).optional(),
+});
+export type MovePlanItem = z.infer<typeof MovePlanItemSchema>;
+
 // Display status of a plan item, derived on read (§5). Completed/Partial come
 // from the linked active log; Missed is computed, never stored.
 export type DerivedPlanStatus =

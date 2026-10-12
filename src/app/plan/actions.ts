@@ -8,33 +8,49 @@ import { ServiceError } from "@/lib/services/errors";
 import {
   addPlanItem,
   addStrengthPlanItem,
+  getWeekRevision,
+  movePlanItem,
   setRestDay,
   unsetRestDay,
 } from "@/lib/services/planner";
 
+export type ConflictKind = "STALE" | "LOCKED" | "REST" | "OTHER";
+
 export type ActionResult =
-  | { ok: true; revision?: number; logId?: string }
-  | { ok: false; code: string; message: string };
+  | {
+      ok: true;
+      revision?: number;
+      logId?: string;
+      destRevision?: number;
+      dailyPlanId?: string;
+      sortOrder?: number;
+    }
+  | { ok: false; code: string; message: string; conflictKind?: ConflictKind };
 
 function toResult(err: unknown): ActionResult {
   if (err instanceof ServiceError) {
     switch (err.code) {
       case "VALIDATION":
         return { ok: false, code: err.code, message: "ข้อมูลไม่ถูกต้อง" };
-      case "CONFLICT":
-        return {
-          ok: false,
-          code: err.code,
-          message: err.message.includes("has logs")
-            ? "วันนี้มีผลบันทึกแล้ว เปลี่ยนเป็นวันพักไม่ได้"
-            : err.message.includes("remove them first")
-              ? "วันนี้ยังมีแผนที่ยังไม่บันทึก เลือกนำออกก่อน"
-              : err.message.includes("rest day")
-                ? "วันพักเพิ่มเซสชันไม่ได้"
-                : err.message.includes("already has an active log")
-                  ? "แผนนี้บันทึกผลไปแล้ว"
-                  : "ข้อมูลเปลี่ยนไปแล้ว ลองใหม่อีกครั้ง",
-        };
+      case "CONFLICT": {
+        // One chain maps the service message to kind + Thai copy together.
+        const msg = err.message;
+        const [conflictKind, message]: [ConflictKind, string] =
+          msg.includes("has logs")
+            ? ["OTHER", "วันนี้มีผลบันทึกแล้ว เปลี่ยนเป็นวันพักไม่ได้"]
+            : msg.includes("remove them first")
+              ? ["OTHER", "วันนี้ยังมีแผนที่ยังไม่บันทึก เลือกนำออกก่อน"]
+              : msg.includes("cannot move a session to a rest day")
+                ? ["REST", "ย้ายไปวันพักไม่ได้"]
+                : msg.includes("rest day")
+                  ? ["OTHER", "วันพักเพิ่มเซสชันไม่ได้"]
+                  : msg.includes("already has an active log")
+                    ? ["OTHER", "แผนนี้บันทึกผลไปแล้ว"]
+                    : msg.includes("active log; cannot move")
+                      ? ["LOCKED", "แผนนี้มีผลบันทึกแล้ว ย้ายไม่ได้"]
+                      : ["STALE", "ข้อมูลเปลี่ยนไปแล้ว ลองใหม่อีกครั้ง"];
+        return { ok: false, code: err.code, conflictKind, message };
+      }
       case "NOT_FOUND":
         return {
           ok: false,
@@ -136,6 +152,50 @@ export async function addStrengthPlanAction(input: {
     );
     revalidatePath("/plan");
     revalidatePath("/");
+    return { ok: true, revision };
+  } catch (err) {
+    return toResult(err);
+  }
+}
+
+export async function movePlanAction(input: {
+  planItemId: string;
+  targetDate: string;
+  targetIndex: number;
+  expectedRevision: number;
+  expectedDestRevision?: number;
+}): Promise<ActionResult> {
+  try {
+    const userId = await requireUserId();
+    const moved = await movePlanItem(userId, {
+      planItemId: input.planItemId,
+      targetDate: input.targetDate,
+      targetIndex: input.targetIndex,
+      expectedRevision: input.expectedRevision,
+      ...(input.expectedDestRevision !== undefined
+        ? { expectedDestRevision: input.expectedDestRevision }
+        : {}),
+    });
+    revalidatePath("/plan");
+    revalidatePath("/");
+    return {
+      ok: true,
+      revision: moved.revision,
+      destRevision: moved.destRevision,
+      dailyPlanId: moved.dailyPlanId,
+      sortOrder: moved.sortOrder,
+    };
+  } catch (err) {
+    return toResult(err);
+  }
+}
+
+export async function getWeekRevisionAction(input: {
+  monday: string;
+}): Promise<ActionResult> {
+  try {
+    const userId = await requireUserId();
+    const { revision } = await getWeekRevision(userId, input.monday);
     return { ok: true, revision };
   } catch (err) {
     return toResult(err);

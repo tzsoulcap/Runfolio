@@ -19,7 +19,8 @@ import {
   listStrengthMasters,
   listWeek,
 } from "@/lib/services/planner";
-import { DaySection } from "@/features/planner/day-section";
+import { PlannerBoard } from "@/features/planner/planner-board";
+import { toDayDTO } from "@/features/planner/types";
 import type {
   MuscleGroup,
   StrengthPrescription,
@@ -139,20 +140,19 @@ async function PlanContent({ week }: { week: string | undefined }) {
         </p>
       )}
 
-      <div className="mt-4">
-        {dates.map((d) => (
-          <DaySection
-            key={d}
-            date={d}
-            day={dayByDate.get(d)}
-            masters={formMasters}
-            strengthMasters={strengthOptions}
-            goals={goals}
-            revision={weekRow?.revision ?? 1}
-            today={today}
-          />
-        ))}
-      </div>
+      <PlannerBoard
+        initialDays={dates.map((d) => {
+          const found = dayByDate.get(d);
+          return found
+            ? toDayDTO(found)
+            : { id: d, date: d, isRestDay: false, note: null, items: [] };
+        })}
+        masters={formMasters}
+        strengthMasters={strengthOptions}
+        goals={goals}
+        initialRevision={weekRow?.revision ?? 1}
+        today={today}
+      />
     </div>
   );
 }

@@ -13,6 +13,7 @@ import {
 } from "@/lib/db/schema";
 import {
   derivePlanStatus,
+  MovePlanItemSchema,
   PlanDraftSchema,
   StrengthPlanDraftSchema,
   type DerivedPlanStatus,
@@ -327,6 +328,185 @@ export async function addStrengthPlanItem(
     const revision = await bumpRevision(tx, week.id, expectedRevision);
     return { item, revision };
   });
+}
+
+export async function movePlanItem(userId: string, raw: unknown) {
+  const parsed = MovePlanItemSchema.safeParse(raw);
+  if (!parsed.success) {
+    throw validation(parsed.error.issues[0]?.message ?? "invalid move");
+  }
+  const input = parsed.data;
+  return db.transaction(async (tx) => {
+    const [found] = await tx
+      .select({
+        weekId: weeklyPlans.id,
+      })
+      .from(planItems)
+      .innerJoin(dailyPlans, eq(planItems.dailyPlanId, dailyPlans.id))
+      .innerJoin(weeklyPlans, eq(dailyPlans.weeklyPlanId, weeklyPlans.id))
+      .where(
+        and(
+          eq(planItems.id, input.planItemId),
+          isNull(planItems.deletedAt),
+          eq(weeklyPlans.userId, userId),
+        ),
+      )
+      .limit(1);
+    if (!found) {
+      throw new ServiceError("NOT_FOUND", "plan item not found");
+    }
+    // Ensure the destination week, then lock weeks in ID order (§13).
+    const { week: destWeek } = await ensureWeek(
+      tx,
+      userId,
+      mondayOf(input.targetDate),
+    );
+    const locked = new Map<string, number>();
+    for (const id of [...new Set([found.weekId, destWeek.id])].sort()) {
+      const [w] = await tx
+        .select({ id: weeklyPlans.id, revision: weeklyPlans.revision })
+        .from(weeklyPlans)
+        .where(eq(weeklyPlans.id, id))
+        .for("update")
+        .limit(1);
+      if (w) locked.set(w.id, w.revision);
+    }
+    const sourceRevision = locked.get(found.weekId);
+    const destRevision = locked.get(destWeek.id);
+    if (sourceRevision === undefined || destRevision === undefined) {
+      throw new ServiceError("NOT_FOUND", "week not found");
+    }
+    if (sourceRevision !== input.expectedRevision) {
+      throw new ServiceError("CONFLICT", "week changed; refetch and retry");
+    }
+    const crossWeek = found.weekId !== destWeek.id;
+    if (crossWeek) {
+      if (input.expectedDestRevision === undefined) {
+        throw validation("cross-week moves need the destination revision");
+      }
+      if (destRevision !== input.expectedDestRevision) {
+        throw new ServiceError(
+          "CONFLICT",
+          "destination week changed; refetch and retry",
+        );
+      }
+    }
+    // Lock the item, then enforce the log lock under the lock.
+    const [item] = await tx
+      .select()
+      .from(planItems)
+      .where(eq(planItems.id, input.planItemId))
+      .for("update")
+      .limit(1);
+    if (!item || item.deletedAt) {
+      throw new ServiceError("NOT_FOUND", "plan item not found");
+    }
+    const [activeLog] = await tx
+      .select({ id: workoutLogs.id })
+      .from(workoutLogs)
+      .where(
+        and(
+          eq(workoutLogs.planItemId, item.id),
+          isNull(workoutLogs.deletedAt),
+        ),
+      )
+      .limit(1);
+    if (activeLog) {
+      throw new ServiceError("CONFLICT", "plan has an active log; cannot move");
+    }
+    const [destDay] = await tx
+      .select()
+      .from(dailyPlans)
+      .where(
+        and(
+          eq(dailyPlans.weeklyPlanId, destWeek.id),
+          eq(dailyPlans.date, input.targetDate),
+        ),
+      )
+      .limit(1);
+    if (!destDay) throw new ServiceError("NOT_FOUND", "day not found");
+    if (destDay.isRestDay) {
+      throw new ServiceError("CONFLICT", "cannot move a session to a rest day");
+    }
+    const sameDay = item.dailyPlanId === destDay.id;
+    const siblings = async (dayId: string) =>
+      tx
+        .select({ id: planItems.id })
+        .from(planItems)
+        .where(
+          and(eq(planItems.dailyPlanId, dayId), isNull(planItems.deletedAt)),
+        )
+        .orderBy(asc(planItems.sortOrder));
+    const sourceAll = await siblings(item.dailyPlanId);
+    const sourceIds = sourceAll
+      .map((r) => r.id)
+      .filter((id) => id !== item.id);
+    const destIds = sameDay
+      ? sourceIds
+      : (await siblings(destDay.id)).map((r) => r.id);
+    // targetIndex is the desired index in the final day order.
+    const targetIndex = Math.min(input.targetIndex, destIds.length);
+    const noOp =
+      sameDay &&
+      sourceAll.findIndex((r) => r.id === item.id) === targetIndex;
+    if (noOp) {
+      return {
+        dailyPlanId: item.dailyPlanId,
+        sortOrder: item.sortOrder,
+        revision: sourceRevision,
+        destRevision,
+      };
+    }
+    if (!sameDay) {
+      for (const [i, id] of sourceIds.entries()) {
+        await tx
+          .update(planItems)
+          .set({ sortOrder: i, updatedAt: new Date() })
+          .where(eq(planItems.id, id));
+      }
+    }
+    const next = [...destIds];
+    next.splice(targetIndex, 0, item.id);
+    for (const [i, id] of next.entries()) {
+      await tx
+        .update(planItems)
+        .set(
+          id === item.id
+            ? { dailyPlanId: destDay.id, sortOrder: i, updatedAt: new Date() }
+            : { sortOrder: i, updatedAt: new Date() },
+        )
+        .where(eq(planItems.id, id));
+    }
+    const revision = await bumpRevision(tx, found.weekId, input.expectedRevision);
+    const newDestRevision = crossWeek
+      ? await bumpRevision(
+          tx,
+          destWeek.id,
+          input.expectedDestRevision as number,
+        )
+      : revision;
+    return {
+      dailyPlanId: destDay.id,
+      sortOrder: targetIndex,
+      revision,
+      destRevision: newDestRevision,
+    };
+  });
+}
+
+export async function getWeekRevision(userId: string, monday: string) {
+  if (!isMonday(monday)) {
+    throw validation("weekStartDate must be a Monday");
+  }
+  const [week] = await db
+    .select({ revision: weeklyPlans.revision })
+    .from(weeklyPlans)
+    .where(
+      and(eq(weeklyPlans.userId, userId), eq(weeklyPlans.weekStartDate, monday)),
+    )
+    .limit(1);
+  // Missing weeks start at revision 1; the move guard re-checks (§13).
+  return { revision: week?.revision ?? 1 };
 }
 
 export async function setRestDay(

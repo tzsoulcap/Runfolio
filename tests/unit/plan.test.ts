@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   derivePlanStatus,
+  MovePlanItemSchema,
   PlanDraftSchema,
   StrengthPlanDraftSchema,
 } from "@/lib/domain/plan";
@@ -287,6 +288,47 @@ describe("StrengthPlanDraftSchema", () => {
         ...STRENGTH_BASE,
         title: "",
       }).success,
+    ).toBe(false);
+  });
+});
+
+const MOVE_BASE = {
+  planItemId: "11111111-1111-4111-8111-111111111111",
+  targetDate: "2026-10-14",
+  targetIndex: 0,
+  expectedRevision: 1,
+};
+
+describe("MovePlanItemSchema", () => {
+  it("accepts a same-week move", () => {
+    expect(MovePlanItemSchema.safeParse(MOVE_BASE).success).toBe(true);
+  });
+
+  it("accepts a cross-week move carrying both revisions (§13)", () => {
+    expect(
+      MovePlanItemSchema.safeParse({
+        ...MOVE_BASE,
+        targetDate: "2026-10-21",
+        expectedDestRevision: 4,
+      }).success,
+    ).toBe(true);
+  });
+
+  it("rejects bad id, date, index, and revision", () => {
+    expect(
+      MovePlanItemSchema.safeParse({ ...MOVE_BASE, planItemId: "nope" })
+        .success,
+    ).toBe(false);
+    expect(
+      MovePlanItemSchema.safeParse({ ...MOVE_BASE, targetDate: "14-10-2026" })
+        .success,
+    ).toBe(false);
+    expect(
+      MovePlanItemSchema.safeParse({ ...MOVE_BASE, targetIndex: -1 }).success,
+    ).toBe(false);
+    expect(
+      MovePlanItemSchema.safeParse({ ...MOVE_BASE, expectedRevision: 0 })
+        .success,
     ).toBe(false);
   });
 });
