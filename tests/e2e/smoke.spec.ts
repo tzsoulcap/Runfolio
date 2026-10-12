@@ -1,15 +1,26 @@
-import { expect, test } from "@playwright/test";
+import { config } from "dotenv";
+import { expect, test, type Page } from "@playwright/test";
+
+config({ path: ".env.local" });
+
+async function loginFresh(page: Page): Promise<void> {
+  const secret = process.env.E2E_TEST_SECRET as string;
+  const email = `e2e-loop-smoke${Date.now()}${Math.floor(Math.random() * 10000)}@example.com`;
+  const login = await page.request.get(
+    `/auth/test-login?secret=${encodeURIComponent(secret)}&email=${encodeURIComponent(email)}`,
+  );
+  expect(login.ok()).toBe(true);
+}
 
 const ROUTES = [
   { path: "/", heading: "วันนี้" },
   { path: "/goals", heading: "เป้าหมาย" },
   { path: "/goals/demo-id", heading: "รายละเอียดเป้าหมาย" },
   { path: "/progress", heading: "สถิติ" },
-  { path: "/settings", heading: "ตั้งค่า" },
 ];
 
 // Signed-out visits to gated pages land on login with a next parameter.
-const GATED_ROUTES = ["/plan", "/journal", "/journal/demo-id"];
+const GATED_ROUTES = ["/plan", "/journal", "/journal/demo-id", "/settings"];
 
 const NAV_LABELS = ["วันนี้", "แผนซ้อม", "บันทึก", "เป้าหมาย", "สถิติ"];
 
@@ -65,6 +76,7 @@ test("exactly one nav visible per form factor with five labeled links", async ({
 });
 
 test("avatar opens settings", async ({ page }) => {
+  await loginFresh(page);
   await page.goto("/");
   await page.getByRole("link", { name: "ตั้งค่า" }).click();
   await expect(page).toHaveURL(/\/settings$/);

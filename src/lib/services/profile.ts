@@ -2,6 +2,14 @@ import { eq } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
 import { userProfiles, type UserProfile } from "@/lib/db/schema";
+import {
+  normalizeProfileInput,
+  type ProfileInput,
+} from "@/lib/domain/profile";
+
+import { ServiceError } from "./errors";
+
+export type UserProfileUpdate = ProfileInput;
 
 export async function ensureUserProfile(userId: string): Promise<UserProfile> {
   await db
@@ -28,4 +36,24 @@ export async function getOwnProfile(
     .where(eq(userProfiles.userId, userId))
     .limit(1);
   return profile ?? null;
+}
+
+export async function updateOwnProfile(
+  userId: string,
+  raw: ProfileInput,
+): Promise<UserProfile> {
+  const input = normalizeProfileInput(raw);
+  if (!input.ok) {
+    throw new ServiceError(input.code, input.message);
+  }
+  await ensureUserProfile(userId);
+  const [profile] = await db
+    .update(userProfiles)
+    .set({ displayName: input.displayName, timezone: input.timezone })
+    .where(eq(userProfiles.userId, userId))
+    .returning();
+  if (!profile) {
+    throw new Error("profile missing after update");
+  }
+  return profile;
 }

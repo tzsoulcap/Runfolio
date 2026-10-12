@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { getSessionUserId } from "@/lib/auth/session";
 
+import { DemoSignInButton } from "./demo-button";
 import { GoogleSignInButton, GoogleSignInFallback } from "./google-button";
 
 function LoginCard({ children }: { children: ReactNode }) {
@@ -25,6 +26,9 @@ async function LoginGate() {
     <LoginCard>
       <Suspense fallback={<GoogleSignInFallback />}>
         <GoogleSignInButton />
+      </Suspense>
+      <Suspense>
+        <DemoSignInButton />
       </Suspense>
     </LoginCard>
   );
