@@ -42,7 +42,7 @@ export type DayWithItems = typeof dailyPlans.$inferSelect & {
   >;
 };
 
-type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+export type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 function validation(message: string): ServiceError {
   return new ServiceError("VALIDATION", message);
@@ -66,7 +66,7 @@ export async function listStrengthMasters() {
     .orderBy(asc(strengthExerciseMasters.sortOrder));
 }
 
-async function ensureWeek(tx: DbTx, userId: string, monday: string) {
+export async function ensureWeek(tx: DbTx, userId: string, monday: string) {
   const found = await tx
     .select()
     .from(weeklyPlans)
@@ -133,7 +133,7 @@ export async function getOrCreateWeek(userId: string, monday: string) {
   return db.transaction((tx) => ensureWeek(tx, userId, monday));
 }
 
-async function bumpRevision(
+export async function bumpRevision(
   tx: DbTx,
   weekId: string,
   expectedRevision: number,

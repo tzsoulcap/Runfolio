@@ -20,6 +20,7 @@ import {
   listWeek,
 } from "@/lib/services/planner";
 import { PlannerBoard } from "@/features/planner/planner-board";
+import { PlanWeekMenu } from "@/features/planner/plan-week-menu";
 import { toDayDTO } from "@/features/planner/types";
 import type {
   MuscleGroup,
@@ -81,7 +82,10 @@ async function PlanContent({ week }: { week: string | undefined }) {
 
   return (
     <div>
-      <h1 className="text-3xl font-semibold sm:text-4xl">แผนซ้อม</h1>
+      <div className="flex items-start justify-between gap-3">
+        <h1 className="text-3xl font-semibold sm:text-4xl">แผนซ้อม</h1>
+        <PlanWeekMenu monday={monday} />
+      </div>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <Link
           href={`/plan?week=${addDays(monday, -7)}`}

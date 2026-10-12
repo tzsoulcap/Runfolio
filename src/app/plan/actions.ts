@@ -13,6 +13,20 @@ import {
   setRestDay,
   unsetRestDay,
 } from "@/lib/services/planner";
+import {
+  applyTemplate,
+  copyWeek,
+  deleteTemplate,
+  listTemplates,
+  previewCopyWeek,
+  previewTemplateApply,
+  renameTemplate,
+  saveWeekTemplate,
+  type CopyMode,
+  type RestChoice,
+  type WeekPreview,
+} from "@/lib/services/copying";
+import { summarizeTemplatePayload } from "@/lib/domain/template";
 
 export type ConflictKind = "STALE" | "LOCKED" | "REST" | "OTHER";
 
@@ -24,7 +38,13 @@ export type ActionResult =
       destRevision?: number;
       dailyPlanId?: string;
       sortOrder?: number;
+      itemsCopied?: number;
+      templateId?: string;
     }
+  | { ok: false; code: string; message: string; conflictKind?: ConflictKind };
+
+export type DataResult<T> =
+  | { ok: true; data: T }
   | { ok: false; code: string; message: string; conflictKind?: ConflictKind };
 
 function toResult(err: unknown): ActionResult {
@@ -48,7 +68,17 @@ function toResult(err: unknown): ActionResult {
                     ? ["OTHER", "แผนนี้บันทึกผลไปแล้ว"]
                     : msg.includes("active log; cannot move")
                       ? ["LOCKED", "แผนนี้มีผลบันทึกแล้ว ย้ายไม่ได้"]
-                      : ["STALE", "ข้อมูลเปลี่ยนไปแล้ว ลองใหม่อีกครั้ง"];
+                      : msg.includes("needs a rest choice")
+                        ? [
+                            "OTHER",
+                            "เลือกก่อนว่าจะคงวันพักหรือเปลี่ยนเป็นวันซ้อม",
+                          ]
+                        : msg.includes("replace blocked")
+                          ? [
+                              "OTHER",
+                              "สัปดาห์นี้มีผลบันทึกแล้ว แทนที่ไม่ได้",
+                            ]
+                          : ["STALE", "ข้อมูลเปลี่ยนไปแล้ว ลองใหม่อีกครั้ง"];
         return { ok: false, code: err.code, conflictKind, message };
       }
       case "NOT_FOUND":
@@ -59,7 +89,11 @@ function toResult(err: unknown): ActionResult {
             ? "ไม่พบเป้าหมายที่เลือก"
             : err.message.includes("exercise master")
               ? "ไม่พบท่าที่เลือก"
-              : "ไม่พบข้อมูล",
+              : err.message.includes("source week")
+                ? "ไม่พบสัปดาห์ต้นทาง"
+                : err.message.includes("template")
+                  ? "ไม่พบเทมเพลต"
+                  : "ไม่พบข้อมูล",
         };
       case "UNAUTHENTICATED":
         return {
@@ -72,6 +106,14 @@ function toResult(err: unknown): ActionResult {
     }
   }
   return { ok: false, code: "UNKNOWN", message: "บันทึกไม่สำเร็จ ลองใหม่" };
+}
+
+function toDataResult<T>(err: unknown): DataResult<T> {
+  const r = toResult(err);
+  if (r.ok) {
+    return { ok: false, code: "UNKNOWN", message: "โหลดไม่สำเร็จ ลองใหม่" };
+  }
+  return r;
 }
 
 export async function addPlanAction(input: {
@@ -197,6 +239,166 @@ export async function getWeekRevisionAction(input: {
     const userId = await requireUserId();
     const { revision } = await getWeekRevision(userId, input.monday);
     return { ok: true, revision };
+  } catch (err) {
+    return toResult(err);
+  }
+}
+
+export async function previewCopyAction(input: {
+  sourceMonday: string;
+  targetMonday: string;
+  mode: CopyMode;
+}): Promise<DataResult<WeekPreview>> {
+  try {
+    const userId = await requireUserId();
+    const preview = await previewCopyWeek(
+      userId,
+      input.sourceMonday,
+      input.targetMonday,
+      input.mode,
+    );
+    return { ok: true, data: preview };
+  } catch (err) {
+    return toDataResult(err);
+  }
+}
+
+export async function copyWeekAction(input: {
+  sourceMonday: string;
+  targetMonday: string;
+  mode: CopyMode;
+  choices?: Record<string, RestChoice>;
+  expectedRevision: number;
+}): Promise<ActionResult> {
+  try {
+    const userId = await requireUserId();
+    const done = await copyWeek(userId, input);
+    revalidatePath("/plan");
+    revalidatePath("/");
+    return {
+      ok: true,
+      revision: done.revision,
+      itemsCopied: done.itemsCopied,
+    };
+  } catch (err) {
+    return toResult(err);
+  }
+}
+
+export async function saveTemplateAction(input: {
+  sourceMonday: string;
+  name: string;
+  description?: string;
+  expectedRevision: number;
+}): Promise<ActionResult> {
+  try {
+    const userId = await requireUserId();
+    const saved = await saveWeekTemplate(userId, input);
+    revalidatePath("/plan");
+    return { ok: true, templateId: saved.id };
+  } catch (err) {
+    return toResult(err);
+  }
+}
+
+export type TemplateSummary = {
+  id: string;
+  name: string;
+  description: string | null;
+  schemaVersion: number;
+  itemCount: number;
+  restCount: number;
+  updatedAt: string;
+};
+
+export async function listTemplatesAction(): Promise<
+  DataResult<TemplateSummary[]>
+> {
+  try {
+    const userId = await requireUserId();
+    const rows = await listTemplates(userId);
+    return {
+      ok: true,
+      data: rows.map((t) => ({
+        id: t.id,
+        name: t.name,
+        description: t.description,
+        schemaVersion: t.schemaVersion,
+        ...summarizeTemplatePayload(t.payload),
+        updatedAt:
+          t.updatedAt instanceof Date
+            ? t.updatedAt.toISOString()
+            : String(t.updatedAt),
+      })),
+    };
+  } catch (err) {
+    return toDataResult(err);
+  }
+}
+
+export async function previewTemplateAction(input: {
+  templateId: string;
+  targetMonday: string;
+  mode: CopyMode;
+}): Promise<DataResult<WeekPreview>> {
+  try {
+    const userId = await requireUserId();
+    const preview = await previewTemplateApply(
+      userId,
+      input.templateId,
+      input.targetMonday,
+      input.mode,
+    );
+    return { ok: true, data: preview };
+  } catch (err) {
+    return toDataResult(err);
+  }
+}
+
+export async function applyTemplateAction(input: {
+  templateId: string;
+  targetMonday: string;
+  mode: CopyMode;
+  choices?: Record<string, RestChoice>;
+  expectedRevision: number;
+}): Promise<ActionResult> {
+  try {
+    const userId = await requireUserId();
+    const done = await applyTemplate(userId, input);
+    revalidatePath("/plan");
+    revalidatePath("/");
+    return {
+      ok: true,
+      revision: done.revision,
+      itemsCopied: done.itemsCopied,
+    };
+  } catch (err) {
+    return toResult(err);
+  }
+}
+
+export async function renameTemplateAction(input: {
+  templateId: string;
+  name: string;
+}): Promise<ActionResult> {
+  try {
+    const userId = await requireUserId();
+    await renameTemplate(userId, input.templateId, input.name);
+    revalidatePath("/plan");
+    return { ok: true };
+  } catch (err) {
+    return toResult(err);
+  }
+}
+
+export async function deleteTemplateAction(input: {
+  templateId: string;
+}): Promise<ActionResult> {
+  try {
+    const userId = await requireUserId();
+    await deleteTemplate(userId, input.templateId);
+    revalidatePath("/plan");
+    return { ok: true };
   } catch (err) {
     return toResult(err);
   }
