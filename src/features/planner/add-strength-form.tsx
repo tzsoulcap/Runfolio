@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { addStrengthPlanAction } from "@/app/plan/actions";
 import { Button } from "@/components/ui/button";
+import { ExercisePreview } from "@/components/exercise-preview";
 import { inputCls, labelCls } from "@/components/ui/field";
 import type {
   CountMode,
@@ -168,6 +169,7 @@ export function AddStrengthForm({
   const [saving, setSaving] = useState(false);
 
   const byCode = new Map(exercises.map((m) => [m.code, m]));
+  const selectedMaster = byCode.get(picked);
 
   function addPicked() {
     const master = byCode.get(picked);
@@ -324,6 +326,9 @@ export function AddStrengthForm({
             เพิ่มท่า
           </Button>
         </div>
+        {selectedMaster && (
+          <ExercisePreview exerciseCode={picked} nameTh={selectedMaster.nameTh} />
+        )}
       </div>
 
       <ol className="mt-3 space-y-3">
@@ -355,6 +360,11 @@ export function AddStrengthForm({
                   เอาออก
                 </button>
               </div>
+              <ExercisePreview
+                compact
+                exerciseCode={row.code}
+                nameTh={master.nameTh}
+              />
               <div className="mt-2 grid grid-cols-3 gap-2">
                 <div>
                   <label className={labelCls} htmlFor={`sets-${id}`}>

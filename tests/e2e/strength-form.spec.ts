@@ -61,6 +61,10 @@ test("single-arm dumbbell row saves a plan and logs both sides", async ({
   await expect(row).toContainText("ดึงดัมเบลแขนเดียว");
   await expect(row).toContainText("3 เซ็ต × 10 ครั้งต่อข้าง");
   await expect(row).toContainText("8 kg");
+  await row.getByRole("button", { name: "ดูภาพท่า ดึงดัมเบลแขนเดียว", exact: true }).click();
+  const preview = page.getByRole("dialog", { name: "ดึงดัมเบลแขนเดียว", exact: true });
+  await expect(preview).toBeVisible();
+  await preview.getByRole("button", { name: "ปิดภาพท่า", exact: true }).click();
   await row.getByRole("button", { name: "ปิดรายละเอียด", exact: true }).click();
 
   await row.getByRole("button", { name: "บันทึกเวท", exact: true }).click();
@@ -85,6 +89,9 @@ test("single-arm dumbbell row saves a plan and logs both sides", async ({
   await expect(
     page.getByRole("heading", { name: "ดึงดัมเบลแขนเดียว", exact: true }),
   ).toBeVisible();
+  await page.getByRole("button", { name: "ดูภาพท่า ดึงดัมเบลแขนเดียว", exact: true }).click();
+  await expect(preview).toBeVisible();
+  await preview.getByRole("button", { name: "ปิดภาพท่า", exact: true }).click();
   for (let set = 1; set <= 3; set += 1) {
     const actual = page.locator("li").filter({ hasText: `เซ็ต ${set}:` });
     await expect(actual).toContainText("ข้างซ้าย 10 ครั้ง · 8 kg");

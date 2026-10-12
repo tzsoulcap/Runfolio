@@ -8,6 +8,7 @@ import {
   updateStrengthLogAction,
 } from "@/app/plan/actions";
 import { Button } from "@/components/ui/button";
+import { ExercisePreview } from "@/components/exercise-preview";
 import { inputCls, labelCls } from "@/components/ui/field";
 import type { CountMode, StrengthPrescription } from "@/lib/domain/master";
 import { mintKey } from "@/lib/keys";
@@ -232,6 +233,7 @@ export function StrengthLogForm({
       : planned.map((p) => rowFromPlanned(p, masters)),
   );
   const [picked, setPicked] = useState(masters[0]?.code ?? "");
+  const selectedMaster = masterByCode(masters, picked);
 
   function patchSlot(
     exKey: string,
@@ -560,6 +562,11 @@ export function StrengthLogForm({
                 </button>
               </div>
 
+              <ExercisePreview
+                compact
+                exerciseCode={ex.exerciseCode}
+                nameTh={ex.nameTh}
+              />
               <ol className="mt-2 space-y-3">
                 {ex.sets.map((s) => (
                   <li key={s.setNumber}>
@@ -693,6 +700,9 @@ export function StrengthLogForm({
             เพิ่มท่า
           </Button>
         </div>
+        {selectedMaster && (
+          <ExercisePreview exerciseCode={picked} nameTh={selectedMaster.nameTh} />
+        )}
       </div>
 
       <fieldset className="mt-3">

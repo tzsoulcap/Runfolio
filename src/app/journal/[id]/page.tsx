@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
 import { ChevronLeft, Dumbbell } from "lucide-react";
 import { RunningIcon } from "@/components/running-icon";
+import { ExercisePreview } from "@/components/exercise-preview";
 
 import { getSessionUserId } from "@/lib/auth/session";
 import {
@@ -163,6 +164,11 @@ function StrengthActuals({
             <h3 className="text-[15px] font-semibold">
               {snapshot?.nameTh ?? exercise.exerciseCode}
             </h3>
+            <ExercisePreview
+              compact
+              exerciseCode={exercise.exerciseCode}
+              nameTh={snapshot?.nameTh ?? exercise.exerciseCode}
+            />
             {parsed.success && (
               <p className="text-sm text-muted">
                 แผน{" "}

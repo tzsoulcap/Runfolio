@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Check, Dumbbell, MoreHorizontal } from "lucide-react";
 
 import { RunningIcon } from "@/components/running-icon";
+import { ExercisePreview } from "@/components/exercise-preview";
 import type { DerivedPlanStatus } from "@/lib/domain/plan";
 import { paceLabelFor } from "@/lib/domain/metrics";
 import { LogForm } from "@/features/journal/log-form";
@@ -82,7 +83,26 @@ export function PlanItemCard({
           {locked && <><MoreHorizontal className="mx-2 size-5 text-muted" aria-hidden /><span className="sr-only">มีผลบันทึกแล้ว ย้ายไม่ได้</span></>}
         </div>
         {detailsOpen && <div className="relative z-10 col-span-full mt-2 border-t border-line px-2 py-3 text-sm text-muted">
-          {isStrength && <ol className="list-decimal space-y-2 pl-4">{item.exercises.map((exercise) => <li key={exercise.id}>{exercise.masterSnapshot?.nameTh ?? exercise.exerciseCode}{" "}{formatPrescriptionTh(exercise.prescription, exercise.masterSnapshot?.repLabel === "STEPS" ? "STEPS" : "REPS")}</li>)}</ol>}
+          {isStrength && (
+            <ol className="list-decimal space-y-2 pl-4">
+              {item.exercises.map((exercise) => (
+                <li key={exercise.id}>
+                  {exercise.masterSnapshot?.nameTh ?? exercise.exerciseCode}{" "}
+                  {formatPrescriptionTh(
+                    exercise.prescription,
+                    exercise.masterSnapshot?.repLabel === "STEPS" ? "STEPS" : "REPS",
+                  )}
+                  <div>
+                    <ExercisePreview
+                      compact
+                      exerciseCode={exercise.exerciseCode}
+                      nameTh={exercise.masterSnapshot?.nameTh ?? exercise.exerciseCode}
+                    />
+                  </div>
+                </li>
+              ))}
+            </ol>
+          )}
           {item.note && <p className={isStrength ? "mt-2" : ""}>{item.note}</p>}
           {!isStrength && <p>{formatTargetTh(item.runningTarget)}{formatIntensityTh(item.intensityTarget) ? ` · ${formatIntensityTh(item.intensityTarget)}` : ""}</p>}
           <button type="button" onClick={() => setDetailsOpen(false)} className="mt-2 min-h-11 font-medium text-forest">ปิดรายละเอียด</button>
