@@ -72,7 +72,7 @@ async function HomeContent() {
   const [{ days }, rangeLogs, latest, goal] = await Promise.all([
     listWeek(userId, monday, today),
     listLogsInRange(userId, dates[0] ?? monday, dates[6] ?? monday),
-    listLogs(userId, 3),
+    listLogs(userId, { limit: 3 }).then((r) => r.entries),
     getPrimaryGoal(userId),
   ]);
   const dayByDate = new Map(days.map((d) => [d.date, d]));

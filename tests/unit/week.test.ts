@@ -4,6 +4,8 @@ import {
   addDays,
   isMonday,
   mondayOf,
+  monthGrid,
+  shiftMonth,
   todayInTimeZone,
   weekDates,
   zonedTimeToUtc,
@@ -71,5 +73,28 @@ describe("zonedTimeToUtc", () => {
     expect(
       zonedTimeToUtc("2026-01-09", "06:30", "America/New_York").toISOString(),
     ).toBe("2026-01-09T11:30:00.000Z");
+  });
+});
+
+describe("monthGrid", () => {
+  it("pads a Monday-first grid with leading days", () => {
+    // 2026-02-01 is a Sunday: 6 leading days, then Feb 1..28.
+    const grid = monthGrid("2026-02");
+    expect(grid.slice(0, 6).map((d) => d.date)).toEqual([
+      "2026-01-26",
+      "2026-01-27",
+      "2026-01-28",
+      "2026-01-29",
+      "2026-01-30",
+      "2026-01-31",
+    ]);
+    expect(grid.slice(0, 6).every((d) => !d.inMonth)).toBe(true);
+    expect(grid[6]).toEqual({ date: "2026-02-01", inMonth: true });
+    expect(grid).toHaveLength(34);
+  });
+
+  it("shifts across year boundaries", () => {
+    expect(shiftMonth("2026-01", -1)).toBe("2025-12");
+    expect(shiftMonth("2026-12", 1)).toBe("2027-01");
   });
 });

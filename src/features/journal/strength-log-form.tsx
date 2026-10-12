@@ -3,7 +3,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { saveStrengthLogAction } from "@/app/plan/actions";
+import {
+  saveStrengthLogAction,
+  updateStrengthLogAction,
+} from "@/app/plan/actions";
 import { Button } from "@/components/ui/button";
 import { inputCls, labelCls } from "@/components/ui/field";
 import type {
@@ -110,41 +113,132 @@ function planLoadHint(p: StrengthPrescription): string {
   return p.loadKg === 0 ? "น้ำหนักตัว" : `${p.loadKg} kg`;
 }
 
+// Edit mode (§7): rows carry saved results; submit replaces them wholesale.
+export type StrengthExerciseInitial = {
+  plannedExerciseId?: string;
+  exerciseCode: string;
+  measurement?: "REPS" | "TIME";
+  countMode?: CountMode;
+  sets: Array<{
+    setNumber: number;
+    slots: Array<{ dose: string; load: string; side: string }>;
+  }>;
+};
+
+export type StrengthLogInitial = {
+  performedDate: string;
+  sessionMinutes?: string;
+  startTime?: string;
+  outcome: "COMPLETED" | "PARTIAL";
+  rpe?: string;
+  feeling?: string;
+  note?: string;
+  exercises: StrengthExerciseInitial[];
+};
+
+function rowsFromInitial(
+  initial: StrengthLogInitial,
+  planned: PlannedLogRow[],
+  masters: ExerciseOption[],
+): ExRow[] {
+  return initial.exercises.map((saved) => {
+    const planRow = saved.plannedExerciseId
+      ? planned.find((p) => p.id === saved.plannedExerciseId)
+      : undefined;
+    const master = masterByCode(masters, saved.exerciseCode);
+    const measurement =
+      saved.measurement ??
+      planRow?.prescription.measurement ??
+      master?.defaultPrescription.measurement ??
+      "REPS";
+    const countMode =
+      saved.countMode ??
+      planRow?.prescription.countMode ??
+      master?.defaultPrescription.countMode ??
+      "TOTAL";
+    const repLabel = master?.repLabel ?? "REPS";
+    const sides = SIDES_BY_COUNT_MODE[countMode] as readonly string[];
+    return {
+      key: mintKey("st"),
+      ...(saved.plannedExerciseId
+        ? { plannedExerciseId: saved.plannedExerciseId }
+        : {}),
+      exerciseCode: saved.exerciseCode,
+      nameTh:
+        planRow?.masterSnapshot?.nameTh ??
+        master?.nameTh ??
+        saved.exerciseCode,
+      measurement,
+      countMode,
+      repLabel,
+      doseUnit: doseUnitFor(measurement, repLabel),
+      ...(planRow
+        ? {
+            planDose:
+              planRow.prescription.measurement === "REPS"
+                ? planRow.prescription.reps
+                : planRow.prescription.durationSec,
+          }
+        : {}),
+      sets: saved.sets.map((s) => ({
+        setNumber: s.setNumber,
+        slots: sides.map((side) => {
+          const slot = s.slots.find((sl) => sl.side === side);
+          return { dose: slot?.dose ?? "", load: slot?.load ?? "" };
+        }),
+      })),
+    };
+  });
+}
+
 export function StrengthLogForm({
   planItemId,
   planDate,
   planned,
   masters,
   today,
+  edit,
 }: {
   planItemId?: string;
   planDate?: string;
   planned: PlannedLogRow[];
   masters: ExerciseOption[];
   today: string;
+  edit?: { logId: string; initial: StrengthLogInitial };
 }) {
   const router = useRouter();
   const offPlan = planItemId === undefined;
-  const idSuffix = planItemId ?? "offplan";
+  const isEdit = edit !== undefined;
+  const idSuffix = isEdit ? `edit-${edit.logId}` : (planItemId ?? "offplan");
   const [open, setOpen] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [issues, setIssues] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [mutationId] = useState<string>(() => crypto.randomUUID());
 
-  const [performedDate, setPerformedDate] = useState(planDate ?? today);
-  const [sessionMinutes, setSessionMinutes] = useState("");
-  const [startTime, setStartTime] = useState("");
-  const [outcome, setOutcome] = useState<"COMPLETED" | "PARTIAL">(
-    "COMPLETED",
+  const [performedDate, setPerformedDate] = useState(
+    isEdit ? edit.initial.performedDate : (planDate ?? today),
   );
-  const [rpe, setRpe] = useState("");
-  const [feeling, setFeeling] = useState("");
-  const [note, setNote] = useState("");
+  const [sessionMinutes, setSessionMinutes] = useState(
+    isEdit ? (edit.initial.sessionMinutes ?? "") : "",
+  );
+  const [startTime, setStartTime] = useState(
+    isEdit ? (edit.initial.startTime ?? "") : "",
+  );
+  const [outcome, setOutcome] = useState<"COMPLETED" | "PARTIAL">(
+    isEdit ? edit.initial.outcome : "COMPLETED",
+  );
+  const [rpe, setRpe] = useState(isEdit ? (edit.initial.rpe ?? "") : "");
+  const [feeling, setFeeling] = useState(
+    isEdit ? (edit.initial.feeling ?? "") : "",
+  );
+  const [note, setNote] = useState(isEdit ? (edit.initial.note ?? "") : "");
   // Planned shapes with empty results (no autofill §6). Eager: lazy init
   // would mint fresh keys per render and break per-set confirm.
   const [rows, setRows] = useState<ExRow[]>(() =>
-    planned.map((p) => rowFromPlanned(p, masters)),
+    isEdit
+      ? rowsFromInitial(edit.initial, planned, masters)
+      : planned.map((p) => rowFromPlanned(p, masters)),
   );
   const [picked, setPicked] = useState(masters[0]?.code ?? "");
 
@@ -323,9 +417,7 @@ export function StrengthLogForm({
 
     setSubmitting(true);
     try {
-      const res = await saveStrengthLogAction({
-        clientMutationId: mutationId,
-        planItemId,
+      const fields = {
         performedDate,
         sessionMinutes: minutes,
         startTime: startTime.trim() === "" ? undefined : startTime.trim(),
@@ -334,7 +426,14 @@ export function StrengthLogForm({
         feeling: feeling === "" ? undefined : feeling,
         note: note === "" ? undefined : note,
         exercises: payload,
-      });
+      };
+      const res = isEdit
+        ? await updateStrengthLogAction({ logId: edit.logId, ...fields })
+        : await saveStrengthLogAction({
+            clientMutationId: mutationId,
+            planItemId,
+            ...fields,
+          });
       if (!res.ok) {
         if (res.code === "UNAUTHENTICATED") {
           router.push(`/login?next=${encodeURIComponent("/plan")}`);
@@ -352,7 +451,7 @@ export function StrengthLogForm({
   if (!open) {
     return (
       <Button type="button" size="sm" onClick={() => setOpen(true)}>
-        {offPlan ? "บันทึกเวทนอกแผน" : "บันทึกเวท"}
+        {isEdit ? "แก้ไขผลเวท" : offPlan ? "บันทึกเวทนอกแผน" : "บันทึกเวท"}
       </Button>
     );
   }
@@ -675,7 +774,7 @@ export function StrengthLogForm({
       )}
       <div className="mt-4 flex gap-3">
         <Button type="submit" disabled={submitting}>
-          {submitting ? "กำลังบันทึก…" : "บันทึกผลเวท"}
+          {submitting ? "กำลังบันทึก…" : isEdit ? "บันทึกการแก้ไข" : "บันทึกผลเวท"}
         </Button>
         <Button
           type="button"

@@ -18,6 +18,7 @@ import {
   assertNotFuture,
   RunningLogInputSchema,
   StrengthLogInputSchema,
+  type StrengthLogInput,
 } from "@/lib/domain/log";
 import { todayInTimeZone, zonedTimeToUtc } from "@/lib/domain/week";
 
@@ -153,6 +154,91 @@ async function unskip(tx: DbTx, item: typeof planItems.$inferSelect) {
     .update(planItems)
     .set({ planState: "SCHEDULED", skipReason: null, updatedAt: new Date() })
     .where(eq(planItems.id, item.id));
+}
+
+// Locks one owned, active log of the expected activity. Edits and deletes
+// address the log id directly (PUT semantics); no mutation id needed.
+async function lockOwnedLog(
+  tx: DbTx,
+  userId: string,
+  logId: string,
+  activityType: "RUNNING" | "STRENGTH",
+) {
+  const [log] = await tx
+    .select()
+    .from(workoutLogs)
+    .where(
+      and(
+        eq(workoutLogs.id, logId),
+        eq(workoutLogs.userId, userId),
+        isNull(workoutLogs.deletedAt),
+      ),
+    )
+    .limit(1)
+    .for("update");
+  if (!log) throw new ServiceError("NOT_FOUND", "log not found");
+  if (log.activityType !== activityType) {
+    throw new ServiceError("CONFLICT", "log is not of this activity type");
+  }
+  return log;
+}
+
+type PlannedById = Map<string, typeof plannedStrengthExercises.$inferSelect>;
+type StrengthMasterByCode = Map<
+  string,
+  typeof strengthExerciseMasters.$inferSelect
+>;
+
+// Shared by save + update: update deletes children first, then re-inserts.
+async function insertStrengthChildren(
+  tx: DbTx,
+  logId: string,
+  exercises: StrengthLogInput["exercises"],
+  plannedById: PlannedById,
+  byCode: StrengthMasterByCode,
+) {
+  for (const [index, exercise] of exercises.entries()) {
+    const master = byCode.get(exercise.exerciseCode);
+    const planned = exercise.plannedExerciseId
+      ? plannedById.get(exercise.plannedExerciseId)
+      : undefined;
+    const [inserted] = await tx
+      .insert(actualStrengthExercises)
+      .values({
+        workoutLogId: logId,
+        plannedExerciseId: exercise.plannedExerciseId ?? null,
+        exerciseCode: exercise.exerciseCode,
+        variant: exercise.variant ?? planned?.variant ?? "STANDARD",
+        countMode: exercise.countMode,
+        sortOrder: index,
+        masterSnapshot: master
+          ? {
+              code: master.code,
+              nameTh: master.nameTh,
+              nameEn: master.nameEn,
+              muscleGroup: master.muscleGroup,
+              repLabel: master.repLabel,
+              guidance: master.guidance,
+            }
+          : null,
+      })
+      .returning({ id: actualStrengthExercises.id });
+    if (!inserted) {
+      throw new ServiceError("CONFLICT", "log insert failed");
+    }
+    await tx.insert(actualStrengthSets).values(
+      exercise.sets.map((s) => ({
+        actualExerciseId: inserted.id,
+        setIndex: s.setNumber,
+        side: s.side,
+        measurement: s.measurement,
+        reps: s.reps ?? null,
+        durationSec: s.durationSec ?? null,
+        loadKg: s.loadKg ?? null,
+        note: s.note ?? null,
+      })),
+    );
+  }
 }
 
 export async function saveWorkoutLog(
@@ -369,51 +455,251 @@ export async function saveStrengthLog(
         .returning();
       if (!log) throw new ServiceError("CONFLICT", "log insert failed");
 
-      for (const [index, exercise] of actual.exercises.entries()) {
-        const master = byCode.get(exercise.exerciseCode);
-        const planned = exercise.plannedExerciseId
-          ? plannedById.get(exercise.plannedExerciseId)
-          : undefined;
-        const [inserted] = await tx
-          .insert(actualStrengthExercises)
-          .values({
-            workoutLogId: log.id,
-            plannedExerciseId: exercise.plannedExerciseId ?? null,
-            exerciseCode: exercise.exerciseCode,
-            variant: exercise.variant ?? planned?.variant ?? "STANDARD",
-            countMode: exercise.countMode,
-            sortOrder: index,
-            masterSnapshot: master
-              ? {
-                  code: master.code,
-                  nameTh: master.nameTh,
-                  nameEn: master.nameEn,
-                  muscleGroup: master.muscleGroup,
-                  repLabel: master.repLabel,
-                  guidance: master.guidance,
-                }
-              : null,
-          })
-          .returning({ id: actualStrengthExercises.id });
-        if (!inserted) {
-          throw new ServiceError("CONFLICT", "log insert failed");
-        }
-        await tx.insert(actualStrengthSets).values(
-          exercise.sets.map((s) => ({
-            actualExerciseId: inserted.id,
-            setIndex: s.setNumber,
-            side: s.side,
-            measurement: s.measurement,
-            reps: s.reps ?? null,
-            durationSec: s.durationSec ?? null,
-            loadKg: s.loadKg ?? null,
-            note: s.note ?? null,
-          })),
-        );
-      }
+      await insertStrengthChildren(
+        tx,
+        log.id,
+        actual.exercises,
+        plannedById,
+        byCode,
+      );
       return { log, deduped: false };
     });
   } catch (err) {
     return resolveUniqueViolation(userId, args.clientMutationId, err);
   }
+}
+
+// Soft delete (§7): the plan item stays; its derived status reverts to
+// PLANNED/MISSED because no active log links it anymore. Stats read active
+// logs only, so they update too.
+export async function deleteWorkoutLog(
+  userId: string,
+  logId: string,
+): Promise<{ planItemId: string | null }> {
+  return db.transaction(async (tx) => {
+    const [log] = await tx
+      .select()
+      .from(workoutLogs)
+      .where(
+        and(
+          eq(workoutLogs.id, logId),
+          eq(workoutLogs.userId, userId),
+          isNull(workoutLogs.deletedAt),
+        ),
+      )
+      .limit(1)
+      .for("update");
+    if (!log) throw new ServiceError("NOT_FOUND", "log not found");
+    await tx
+      .update(workoutLogs)
+      .set({ deletedAt: new Date(), updatedAt: new Date() })
+      .where(eq(workoutLogs.id, log.id));
+    return { planItemId: log.planItemId };
+  });
+}
+
+export async function undeleteWorkoutLog(
+  userId: string,
+  logId: string,
+): Promise<{ log: typeof workoutLogs.$inferSelect }> {
+  return db.transaction(async (tx) => {
+    const [log] = await tx
+      .select()
+      .from(workoutLogs)
+      .where(and(eq(workoutLogs.id, logId), eq(workoutLogs.userId, userId)))
+      .limit(1)
+      .for("update");
+    if (!log || !log.deletedAt) {
+      throw new ServiceError("NOT_FOUND", "log not found");
+    }
+    // Restoring must not resurrect a clash: the plan may have been re-logged.
+    if (log.planItemId) {
+      const [clash] = await tx
+        .select({ id: workoutLogs.id })
+        .from(workoutLogs)
+        .where(
+          and(
+            eq(workoutLogs.planItemId, log.planItemId),
+            isNull(workoutLogs.deletedAt),
+          ),
+        )
+        .limit(1);
+      if (clash) {
+        throw new ServiceError("CONFLICT", "plan already has an active log");
+      }
+    }
+    const [restored] = await tx
+      .update(workoutLogs)
+      .set({ deletedAt: null, updatedAt: new Date() })
+      .where(eq(workoutLogs.id, log.id))
+      .returning();
+    if (!restored) throw new ServiceError("CONFLICT", "log restore failed");
+    return { log: restored };
+  });
+}
+
+// Full running-log edit (§7): same validation as save, plan link unchanged,
+// splits replaced wholesale.
+export async function updateWorkoutLog(
+  userId: string,
+  logId: string,
+  actualRaw: unknown,
+) {
+  const parsed = RunningLogInputSchema.safeParse(actualRaw);
+  if (!parsed.success) {
+    throw validation(parsed.error.issues[0]?.message ?? "invalid log");
+  }
+  const actual = parsed.data;
+  return db.transaction(async (tx) => {
+    const log = await lockOwnedLog(tx, userId, logId, "RUNNING");
+    const timezone = await profileTimezone(tx, userId);
+    assertNotFuture(actual.performedDate, todayInTimeZone(timezone));
+
+    const [master] = await tx
+      .select()
+      .from(runningWorkoutMasters)
+      .where(eq(runningWorkoutMasters.code, actual.runningWorkoutCode))
+      .limit(1);
+    if (!master || !master.isActive) {
+      throw new ServiceError("NOT_FOUND", "workout master not found");
+    }
+
+    const [updated] = await tx
+      .update(workoutLogs)
+      .set({
+        performedDate: actual.performedDate,
+        startedAt: actual.startTime
+          ? zonedTimeToUtc(actual.performedDate, actual.startTime, timezone)
+          : null,
+        runningWorkoutCode: master.code,
+        outcome: actual.outcome,
+        distanceM: actual.distanceM,
+        movingDurationSec: actual.movingDurationSec,
+        elapsedDurationSec: actual.elapsedDurationSec ?? null,
+        avgHeartRate: actual.avgHeartRate ?? null,
+        rpe: actual.rpe ?? null,
+        feeling: actual.feeling ?? null,
+        note: actual.note ?? null,
+        masterSnapshot: {
+          code: master.code,
+          nameTh: master.nameTh,
+          nameEn: master.nameEn,
+        },
+        updatedAt: new Date(),
+      })
+      .where(eq(workoutLogs.id, log.id))
+      .returning();
+    if (!updated) throw new ServiceError("CONFLICT", "log update failed");
+
+    await tx
+      .delete(actualRunningSplits)
+      .where(eq(actualRunningSplits.workoutLogId, log.id));
+    if (actual.splits && actual.splits.length > 0) {
+      await tx.insert(actualRunningSplits).values(
+        actual.splits.map((s, index) => ({
+          workoutLogId: log.id,
+          splitIndex: index,
+          distanceM: s.distanceM ?? null,
+          durationSec: s.durationSec ?? null,
+        })),
+      );
+    }
+    return { log: updated };
+  });
+}
+
+// Full strength-log edit (§7): same validation as save, plan link unchanged,
+// exercises/sets replaced wholesale. Planned links must belong to the log's
+// own plan; an off-plan log cannot gain planned links by edit.
+export async function updateStrengthLog(
+  userId: string,
+  logId: string,
+  actualRaw: unknown,
+) {
+  const parsed = StrengthLogInputSchema.safeParse(actualRaw);
+  if (!parsed.success) {
+    throw validation(parsed.error.issues[0]?.message ?? "invalid log");
+  }
+  const actual = parsed.data;
+  const wantsPlannedLink = actual.exercises.some(
+    (e) => e.plannedExerciseId !== undefined,
+  );
+  return db.transaction(async (tx) => {
+    const log = await lockOwnedLog(tx, userId, logId, "STRENGTH");
+    if (wantsPlannedLink && !log.planItemId) {
+      throw validation("planned exercises need a plan");
+    }
+    const timezone = await profileTimezone(tx, userId);
+    assertNotFuture(actual.performedDate, todayInTimeZone(timezone));
+
+    const codes = [...new Set(actual.exercises.map((e) => e.exerciseCode))];
+    const masters = await tx
+      .select()
+      .from(strengthExerciseMasters)
+      .where(inArray(strengthExerciseMasters.code, codes));
+    const byCode = new Map(masters.map((m) => [m.code, m]));
+    for (const code of codes) {
+      const master = byCode.get(code);
+      if (!master || !master.isActive) {
+        throw new ServiceError("NOT_FOUND", "exercise master not found");
+      }
+    }
+
+    let plannedById: PlannedById = new Map();
+    if (log.planItemId) {
+      const planned = await tx
+        .select()
+        .from(plannedStrengthExercises)
+        .where(eq(plannedStrengthExercises.planItemId, log.planItemId));
+      plannedById = new Map(planned.map((p) => [p.id, p]));
+      for (const e of actual.exercises) {
+        if (
+          e.plannedExerciseId !== undefined &&
+          !plannedById.has(e.plannedExerciseId)
+        ) {
+          throw new ServiceError("NOT_FOUND", "planned exercise not found");
+        }
+      }
+    }
+
+    const [updated] = await tx
+      .update(workoutLogs)
+      .set({
+        performedDate: actual.performedDate,
+        startedAt: actual.startTime
+          ? zonedTimeToUtc(actual.performedDate, actual.startTime, timezone)
+          : null,
+        outcome: actual.outcome,
+        sessionDurationSec: actual.sessionDurationSec ?? null,
+        rpe: actual.rpe ?? null,
+        feeling: actual.feeling ?? null,
+        note: actual.note ?? null,
+        updatedAt: new Date(),
+      })
+      .where(eq(workoutLogs.id, log.id))
+      .returning();
+    if (!updated) throw new ServiceError("CONFLICT", "log update failed");
+
+    const oldExercises = await tx
+      .select({ id: actualStrengthExercises.id })
+      .from(actualStrengthExercises)
+      .where(eq(actualStrengthExercises.workoutLogId, log.id));
+    const oldIds = oldExercises.map((e) => e.id);
+    if (oldIds.length > 0) {
+      await tx
+        .delete(actualStrengthSets)
+        .where(inArray(actualStrengthSets.actualExerciseId, oldIds));
+      await tx
+        .delete(actualStrengthExercises)
+        .where(inArray(actualStrengthExercises.id, oldIds));
+    }
+    await insertStrengthChildren(
+      tx,
+      log.id,
+      actual.exercises,
+      plannedById,
+      byCode,
+    );
+    return { log: updated };
+  });
 }

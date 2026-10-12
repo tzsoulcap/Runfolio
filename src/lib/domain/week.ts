@@ -42,6 +42,42 @@ export function weekDates(monday: string): string[] {
   return Array.from({ length: 7 }, (_, i) => addDays(monday, i));
 }
 
+export const MonthSchema = z
+  .string()
+  .regex(/^\d{4}-(0[1-9]|1[0-2])$/, "expected yyyy-MM");
+
+function parseMonth(month: string): { y: number; m: number } {
+  const [y, m] = month.split("-").map(Number);
+  return { y: y ?? 2000, m: m ?? 1 };
+}
+
+// All dates of a calendar month, Monday-first grid padded with leading days
+// from the previous month (trailing pad left to the renderer).
+export function monthGrid(month: string): { date: string; inMonth: boolean }[] {
+  const { y, m } = parseMonth(month);
+  const first = new Date(Date.UTC(y, m - 1, 1));
+  const lead = (first.getUTCDay() + 6) % 7;
+  const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const out: { date: string; inMonth: boolean }[] = [];
+  for (let i = lead; i > 0; i--) {
+    const d = new Date(Date.UTC(y, m - 1, 1 - i));
+    out.push({ date: d.toISOString().slice(0, 10), inMonth: false });
+  }
+  for (let day = 1; day <= daysInMonth; day++) {
+    out.push({
+      date: `${month}-${String(day).padStart(2, "0")}`,
+      inMonth: true,
+    });
+  }
+  return out;
+}
+
+export function shiftMonth(month: string, delta: number): string {
+  const { y, m } = parseMonth(month);
+  const d = new Date(Date.UTC(y, m - 1 + delta, 1));
+  return d.toISOString().slice(0, 7);
+}
+
 export function todayInTimeZone(tz: string, now: Date = new Date()): string {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: tz,

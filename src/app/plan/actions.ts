@@ -3,7 +3,14 @@
 import { revalidatePath } from "next/cache";
 
 import { requireUserId } from "@/lib/auth/session";
-import { saveStrengthLog, saveWorkoutLog } from "@/lib/services/logging";
+import {
+  deleteWorkoutLog,
+  saveStrengthLog,
+  saveWorkoutLog,
+  undeleteWorkoutLog,
+  updateStrengthLog,
+  updateWorkoutLog,
+} from "@/lib/services/logging";
 import { ServiceError } from "@/lib/services/errors";
 import {
   addPlanItem,
@@ -461,9 +468,7 @@ export async function unsetRestDayAction(input: {
   }
 }
 
-export async function saveLogAction(input: {
-  clientMutationId: string;
-  planItemId?: string;
+export type RunActualInput = {
   performedDate: string;
   runningWorkoutCode: string;
   distanceKm: number;
@@ -478,45 +483,74 @@ export async function saveLogAction(input: {
   rpe?: number;
   feeling?: string;
   note?: string;
-}): Promise<ActionResult> {
+};
+
+function nonEmpty(value?: string): string | undefined {
+  return value && value.length > 0 ? value : undefined;
+}
+// NOTE: keep the ternary — `value && ...` alone would return "" as-is,
+// and "" fails the HH:mm / non-empty validations downstream.
+
+function toRunningActual(input: RunActualInput) {
+  return {
+    performedDate: input.performedDate,
+    runningWorkoutCode: input.runningWorkoutCode,
+    distanceM: Math.round(input.distanceKm * 1000),
+    movingDurationSec:
+      input.hours * 3600 + input.minutes * 60 + input.seconds,
+    elapsedDurationSec: input.elapsedSec,
+    avgHeartRate: input.avgHeartRate,
+    startTime: nonEmpty(input.startTime),
+    splits:
+      input.splits && input.splits.length > 0 ? input.splits : undefined,
+    outcome: input.outcome,
+    rpe: input.rpe,
+    feeling: nonEmpty(input.feeling),
+    note: nonEmpty(input.note),
+  };
+}
+
+function revalidateLogs() {
+  revalidatePath("/plan");
+  revalidatePath("/journal");
+  revalidatePath("/");
+}
+
+export async function saveLogAction(
+  input: { clientMutationId: string; planItemId?: string } & RunActualInput,
+): Promise<ActionResult> {
   try {
     const userId = await requireUserId();
     const { log } = await saveWorkoutLog(userId, {
       clientMutationId: input.clientMutationId,
       planItemId: input.planItemId,
-      actual: {
-        performedDate: input.performedDate,
-        runningWorkoutCode: input.runningWorkoutCode,
-        distanceM: Math.round(input.distanceKm * 1000),
-        movingDurationSec:
-          input.hours * 3600 + input.minutes * 60 + input.seconds,
-        elapsedDurationSec: input.elapsedSec,
-        avgHeartRate: input.avgHeartRate,
-        startTime:
-          input.startTime && input.startTime.length > 0
-            ? input.startTime
-            : undefined,
-        splits:
-          input.splits && input.splits.length > 0 ? input.splits : undefined,
-        outcome: input.outcome,
-        rpe: input.rpe,
-        feeling:
-          input.feeling && input.feeling.length > 0 ? input.feeling : undefined,
-        note: input.note && input.note.length > 0 ? input.note : undefined,
-      },
+      actual: toRunningActual(input),
     });
-    revalidatePath("/plan");
-    revalidatePath("/journal");
-    revalidatePath("/");
+    revalidateLogs();
     return { ok: true, logId: log.id };
   } catch (err) {
     return toResult(err);
   }
 }
 
-export async function saveStrengthLogAction(input: {
-  clientMutationId: string;
-  planItemId?: string;
+export async function updateLogAction(
+  input: { logId: string } & RunActualInput,
+): Promise<ActionResult> {
+  try {
+    const userId = await requireUserId();
+    const { log } = await updateWorkoutLog(
+      userId,
+      input.logId,
+      toRunningActual(input),
+    );
+    revalidateLogs();
+    return { ok: true, logId: log.id };
+  } catch (err) {
+    return toResult(err);
+  }
+}
+
+export type StrengthActualInput = {
   performedDate: string;
   sessionMinutes?: number;
   startTime?: string;
@@ -539,34 +573,79 @@ export async function saveStrengthLogAction(input: {
       note?: string;
     }>;
   }>;
-}): Promise<ActionResult> {
+};
+
+// Server re-validates everything (§11): StrengthLogInputSchema owns it.
+function toStrengthActual(input: StrengthActualInput) {
+  return {
+    performedDate: input.performedDate,
+    sessionDurationSec:
+      input.sessionMinutes !== undefined
+        ? Math.round(input.sessionMinutes * 60)
+        : undefined,
+    startTime: nonEmpty(input.startTime),
+    outcome: input.outcome,
+    rpe: input.rpe,
+    feeling: nonEmpty(input.feeling),
+    note: nonEmpty(input.note),
+    exercises: input.exercises,
+  };
+}
+
+export async function saveStrengthLogAction(
+  input: { clientMutationId: string; planItemId?: string } & StrengthActualInput,
+): Promise<ActionResult> {
   try {
     const userId = await requireUserId();
-    // Server re-validates everything (§11): StrengthLogInputSchema owns it.
     const { log } = await saveStrengthLog(userId, {
       clientMutationId: input.clientMutationId,
       planItemId: input.planItemId,
-      actual: {
-        performedDate: input.performedDate,
-        sessionDurationSec:
-          input.sessionMinutes !== undefined
-            ? Math.round(input.sessionMinutes * 60)
-            : undefined,
-        startTime:
-          input.startTime && input.startTime.length > 0
-            ? input.startTime
-            : undefined,
-        outcome: input.outcome,
-        rpe: input.rpe,
-        feeling:
-          input.feeling && input.feeling.length > 0 ? input.feeling : undefined,
-        note: input.note && input.note.length > 0 ? input.note : undefined,
-        exercises: input.exercises,
-      },
+      actual: toStrengthActual(input),
     });
-    revalidatePath("/plan");
-    revalidatePath("/journal");
-    revalidatePath("/");
+    revalidateLogs();
+    return { ok: true, logId: log.id };
+  } catch (err) {
+    return toResult(err);
+  }
+}
+
+export async function updateStrengthLogAction(
+  input: { logId: string } & StrengthActualInput,
+): Promise<ActionResult> {
+  try {
+    const userId = await requireUserId();
+    const { log } = await updateStrengthLog(
+      userId,
+      input.logId,
+      toStrengthActual(input),
+    );
+    revalidateLogs();
+    return { ok: true, logId: log.id };
+  } catch (err) {
+    return toResult(err);
+  }
+}
+
+export async function deleteLogAction(input: {
+  logId: string;
+}): Promise<ActionResult> {
+  try {
+    const userId = await requireUserId();
+    await deleteWorkoutLog(userId, input.logId);
+    revalidateLogs();
+    return { ok: true };
+  } catch (err) {
+    return toResult(err);
+  }
+}
+
+export async function undeleteLogAction(input: {
+  logId: string;
+}): Promise<ActionResult> {
+  try {
+    const userId = await requireUserId();
+    const { log } = await undeleteWorkoutLog(userId, input.logId);
+    revalidateLogs();
     return { ok: true, logId: log.id };
   } catch (err) {
     return toResult(err);

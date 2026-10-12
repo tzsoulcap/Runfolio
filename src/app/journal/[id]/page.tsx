@@ -19,7 +19,9 @@ import {
 import {
   RunningTargetSchema,
   StrengthPrescriptionSchema,
+  type CountMode,
 } from "@/lib/domain/master";
+import { todayInTimeZone } from "@/lib/domain/week";
 import {
   paceLabelFor,
   type SplitAmount,
@@ -27,8 +29,20 @@ import {
 } from "@/lib/domain/metrics";
 import { ServiceError } from "@/lib/services/errors";
 import { getLogDetail } from "@/lib/services/journal";
+import {
+  listRunningMasters,
+  listStrengthMasters,
+} from "@/lib/services/planner";
 import { getOwnProfile } from "@/lib/services/profile";
+import { toRunningOptions, toStrengthOptions } from "@/lib/master-options";
 import { PagePlaceholder } from "@/components/page-placeholder";
+import { DeleteLogButton } from "@/features/journal/delete-log-button";
+import { LogForm, type LogFormInitial } from "@/features/journal/log-form";
+import {
+  StrengthLogForm,
+  type PlannedLogRow,
+  type StrengthLogInitial,
+} from "@/features/journal/strength-log-form";
 
 function planTargetText(plan: { runningTarget?: unknown } | null): string {
   if (!plan || typeof plan !== "object") return "–";
@@ -198,6 +212,7 @@ async function JournalDetail({ id }: { id: string }) {
   }
   const profile = await getOwnProfile(userId);
   const timezone = profile?.timezone ?? "Asia/Bangkok";
+  const today = todayInTimeZone(timezone);
   const { log, plan, splits, strength } = detail;
   const isStrength = log.activityType === "STRENGTH";
   const name = isStrength ? (plan?.title ?? "เวท") : logDisplayName(log);
@@ -210,6 +225,115 @@ async function JournalDetail({ id }: { id: string }) {
   const pace = isStrength
     ? null
     : paceLabelFor(log.distanceM, log.movingDurationSec);
+  const [runningMasters, strengthMasters] = await Promise.all([
+    listRunningMasters(),
+    listStrengthMasters(),
+  ]);
+  const runningOptions = toRunningOptions(runningMasters);
+  const strengthOptions = toStrengthOptions(strengthMasters);
+
+  const splitHMS = (totalSec: number) => ({
+    hours: Math.floor(totalSec / 3600),
+    minutes: Math.floor((totalSec % 3600) / 60),
+    seconds: totalSec % 60,
+  });
+  const moving = splitHMS(log.movingDurationSec ?? 0);
+  const runInitial: LogFormInitial = {
+    performedDate: log.performedDate,
+    distanceKm: (log.distanceM ?? 0) / 1000,
+    hours: moving.hours,
+    minutes: moving.minutes,
+    seconds: moving.seconds,
+    ...(log.elapsedDurationSec !== null
+      ? (() => {
+          const e = splitHMS(log.elapsedDurationSec);
+          return {
+            elapsedHours: e.hours,
+            elapsedMinutes: e.minutes,
+            elapsedSeconds: e.seconds,
+          };
+        })()
+      : {}),
+    avgHeartRate: log.avgHeartRate ?? undefined,
+    startTime: log.startedAt
+      ? formatTimeTh(log.startedAt, timezone)
+      : undefined,
+    splits: splits.map((s) => ({
+      distanceKm: s.distanceM !== null ? String(s.distanceM / 1000) : "",
+      minutes:
+        s.durationSec !== null
+          ? String(Math.floor(s.durationSec / 60))
+          : "",
+      seconds: s.durationSec !== null ? String(s.durationSec % 60) : "",
+    })),
+    outcome: log.outcome === "PARTIAL" ? "PARTIAL" : "COMPLETED",
+    rpe: log.rpe ?? undefined,
+    feeling: log.feeling ?? undefined,
+    note: log.note ?? undefined,
+  };
+  const plannedRows: PlannedLogRow[] = (planned?.exercises ?? []).flatMap(
+    (e, i) => {
+      const parsed = StrengthPrescriptionSchema.safeParse(e.prescription);
+      if (!parsed.success || !e.plannedExerciseId || !e.exerciseCode) {
+        return [];
+      }
+      return [
+        {
+          id: e.plannedExerciseId,
+          exerciseCode: e.exerciseCode,
+          prescription: parsed.data,
+          sortOrder: i,
+          masterSnapshot: null,
+        },
+      ];
+    },
+  );
+  const strengthInitial: StrengthLogInitial = {
+    performedDate: log.performedDate,
+    sessionMinutes:
+      log.sessionDurationSec !== null
+        ? String(Math.round(log.sessionDurationSec / 60))
+        : undefined,
+    startTime: log.startedAt
+      ? formatTimeTh(log.startedAt, timezone)
+      : undefined,
+    outcome: log.outcome === "PARTIAL" ? "PARTIAL" : "COMPLETED",
+    rpe: log.rpe !== null ? String(log.rpe) : undefined,
+    feeling: log.feeling ?? undefined,
+    note: log.note ?? undefined,
+    exercises: strength.map(({ exercise, sets }) => {
+      const bySet = new Map<number, typeof sets>();
+      for (const s of sets) {
+        const list = bySet.get(s.setIndex) ?? [];
+        list.push(s);
+        bySet.set(s.setIndex, list);
+      }
+      const firstSet = sets[0];
+      return {
+        plannedExerciseId: exercise.plannedExerciseId ?? undefined,
+        exerciseCode: exercise.exerciseCode,
+        measurement:
+          firstSet?.measurement === "TIME" ? "TIME" : ("REPS" as const),
+        countMode: exercise.countMode as CountMode,
+        sets: [...bySet].map(([setNumber, rows]) => ({
+          setNumber,
+          slots: rows.map((s) => ({
+            side: s.side,
+            dose:
+              s.reps !== null
+                ? String(s.reps)
+                : s.durationSec !== null
+                  ? String(s.durationSec)
+                  : "",
+            load: s.loadKg !== null ? String(s.loadKg) : "",
+          })),
+        })),
+      };
+    }),
+  };
+  const editTarget = RunningTargetSchema.safeParse(
+    planned?.runningTarget,
+  );
 
   return (
     <div>
@@ -228,6 +352,30 @@ async function JournalDetail({ id }: { id: string }) {
           </span>
         )}
       </p>
+
+      <div className="mt-3 flex flex-wrap items-start gap-2">
+        {isStrength ? (
+          <StrengthLogForm
+            planItemId={log.planItemId ?? undefined}
+            planDate={planned?.date}
+            planned={plannedRows}
+            masters={strengthOptions}
+            today={today}
+            edit={{ logId: log.id, initial: strengthInitial }}
+          />
+        ) : (
+          <LogForm
+            planItemId={log.planItemId ?? undefined}
+            planDate={planned?.date}
+            runningWorkoutCode={log.runningWorkoutCode ?? "EASY_RUN"}
+            runningTarget={editTarget.success ? editTarget.data : null}
+            masters={runningOptions}
+            today={today}
+            edit={{ logId: log.id, initial: runInitial }}
+          />
+        )}
+        <DeleteLogButton logId={log.id} />
+      </div>
 
       {isStrength ? (
         <dl className="mt-4 grid grid-cols-3 gap-2 rounded-card border border-line bg-paper p-4 text-center">

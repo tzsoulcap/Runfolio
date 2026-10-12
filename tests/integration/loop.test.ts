@@ -131,7 +131,7 @@ describe.skipIf(!canRunDb)("plan-log-journal loop", () => {
       distanceM: 6000,
     });
 
-    const entries = await listLogs(userId);
+    const { entries } = await listLogs(userId);
     expect(entries.map((e) => e.log.id)).toContain(log.id);
   });
 
@@ -254,7 +254,7 @@ describe.skipIf(!canRunDb)("plan-log-journal loop", () => {
     logs.push(log.id);
 
     expect((await listWeek(b, MONDAY, today)).week).toBeNull();
-    expect(await listLogs(b)).toEqual([]);
+    expect(await listLogs(b)).toEqual({ entries: [], total: 0 });
     await expect(getLogDetail(b, log.id)).rejects.toMatchObject({
       code: "NOT_FOUND",
     });

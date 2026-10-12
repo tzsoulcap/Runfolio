@@ -34,6 +34,26 @@ export function formatDateTh(dateStr: string): string {
   return gregorianTh.format(parseDateOnly(dateStr));
 }
 
+const MONTH_TH = [
+  "มกราคม",
+  "กุมภาพันธ์",
+  "มีนาคม",
+  "เมษายน",
+  "พฤษภาคม",
+  "มิถุนายน",
+  "กรกฎาคม",
+  "สิงหาคม",
+  "กันยายน",
+  "ตุลาคม",
+  "พฤศจิกายน",
+  "ธันวาคม",
+];
+
+export function formatMonthTh(month: string): string {
+  const [y, m] = month.split("-").map(Number);
+  return `${MONTH_TH[(m ?? 1) - 1] ?? ""} ${y ?? ""}`;
+}
+
 export function logDisplayName(log: {
   masterSnapshot: Record<string, unknown> | null;
   runningWorkoutCode: string | null;

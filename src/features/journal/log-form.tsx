@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
-import { saveLogAction } from "@/app/plan/actions";
+import { saveLogAction, updateLogAction } from "@/app/plan/actions";
 import { Button } from "@/components/ui/button";
 import { FieldError, inputCls, labelCls } from "@/components/ui/field";
 import type { RunningTarget } from "@/lib/domain/master";
@@ -66,6 +66,25 @@ function planRefText(
   return formatTargetFullTh(target);
 }
 
+// Edit mode (§7): the form opens with saved values; submit replaces them.
+export type LogFormInitial = {
+  performedDate: string;
+  distanceKm: number;
+  hours: number;
+  minutes: number;
+  seconds: number;
+  elapsedHours?: number;
+  elapsedMinutes?: number;
+  elapsedSeconds?: number;
+  avgHeartRate?: number;
+  startTime?: string;
+  splits: Array<{ distanceKm: string; minutes: string; seconds: string }>;
+  outcome: "COMPLETED" | "PARTIAL";
+  rpe?: number;
+  feeling?: string;
+  note?: string;
+};
+
 export function LogForm({
   planItemId,
   planDate,
@@ -73,6 +92,7 @@ export function LogForm({
   runningTarget,
   masters,
   today,
+  edit,
 }: {
   planItemId?: string;
   planDate?: string;
@@ -80,28 +100,59 @@ export function LogForm({
   runningTarget?: RunningTarget | null;
   masters?: LogMasterOption[];
   today: string;
+  edit?: { logId: string; initial: LogFormInitial };
 }) {
   const router = useRouter();
   const offPlan = planItemId === undefined;
-  const idSuffix = planItemId ?? "offplan";
+  const isEdit = edit !== undefined;
+  // REST is a plan-day marker, never a loggable session: keep it out of the
+  // log form entirely (options and default).
+  const loggableMasters = (masters ?? []).filter((m) => m.code !== "REST");
+  const defaultCode =
+    runningWorkoutCode !== "REST"
+      ? runningWorkoutCode
+      : (loggableMasters[0]?.code ?? "EASY_RUN");
+  const idSuffix = isEdit ? `edit-${edit.logId}` : (planItemId ?? "offplan");
   const [open, setOpen] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
-  const [splits, setSplits] = useState<SplitRow[]>([]);
+  const [splits, setSplits] = useState<SplitRow[]>(() =>
+    isEdit
+      ? edit.initial.splits.map((s) => ({ ...s, key: mintKey("sp") }))
+      : [],
+  );
   const [splitErrors, setSplitErrors] = useState<string[]>([]);
   // One id per form open: Retry reuses it (idempotent), a new open mints one.
   const [mutationId] = useState<string>(() => crypto.randomUUID());
 
   const form = useForm<Values>({
     resolver: zodResolver(FormSchema),
-    defaultValues: {
-      performedDate: planDate ?? today,
-      runningWorkoutCode,
-      hours: 0,
-      minutes: 0,
-      seconds: 0,
-      outcome: "COMPLETED",
-      note: "",
-    },
+    defaultValues: isEdit
+      ? {
+          performedDate: edit.initial.performedDate,
+          runningWorkoutCode: defaultCode,
+          distanceKm: edit.initial.distanceKm,
+          hours: edit.initial.hours,
+          minutes: edit.initial.minutes,
+          seconds: edit.initial.seconds,
+          elapsedHours: edit.initial.elapsedHours,
+          elapsedMinutes: edit.initial.elapsedMinutes,
+          elapsedSeconds: edit.initial.elapsedSeconds,
+          avgHeartRate: edit.initial.avgHeartRate,
+          startTime: edit.initial.startTime,
+          outcome: edit.initial.outcome,
+          rpe: edit.initial.rpe,
+          feeling: edit.initial.feeling,
+          note: edit.initial.note ?? "",
+        }
+      : {
+          performedDate: planDate ?? today,
+          runningWorkoutCode: defaultCode,
+          hours: 0,
+          minutes: 0,
+          seconds: 0,
+          outcome: "COMPLETED",
+          note: "",
+        },
   });
 
   const watchedDate = form.watch("performedDate");
@@ -198,13 +249,10 @@ export function LogForm({
     }
     setSplitErrors(issues);
     if (issues.length > 0) return;
-    const res = await saveLogAction({
-      clientMutationId: mutationId,
-      planItemId,
+    const payload = {
       performedDate: values.performedDate,
-      runningWorkoutCode: offPlan
-        ? values.runningWorkoutCode
-        : runningWorkoutCode,
+      runningWorkoutCode:
+        isEdit || offPlan ? values.runningWorkoutCode : runningWorkoutCode,
       distanceKm: values.distanceKm,
       hours: values.hours,
       minutes: values.minutes,
@@ -217,7 +265,14 @@ export function LogForm({
       rpe: values.rpe,
       feeling: values.feeling,
       note: values.note,
-    });
+    };
+    const res = isEdit
+      ? await updateLogAction({ logId: edit.logId, ...payload })
+      : await saveLogAction({
+          clientMutationId: mutationId,
+          planItemId,
+          ...payload,
+        });
     if (!res.ok) {
       if (res.code === "UNAUTHENTICATED") {
         router.push(`/login?next=${encodeURIComponent("/plan")}`);
@@ -232,7 +287,7 @@ export function LogForm({
   if (!open) {
     return (
       <Button type="button" size="sm" onClick={() => setOpen(true)}>
-        {offPlan ? "บันทึกวิ่งนอกแผน" : "บันทึกผล"}
+        {isEdit ? "แก้ไขผลวิ่ง" : offPlan ? "บันทึกวิ่งนอกแผน" : "บันทึกผล"}
       </Button>
     );
   }
@@ -264,7 +319,7 @@ export function LogForm({
         )}
       </div>
 
-      {offPlan && masters && (
+      {(offPlan || isEdit) && loggableMasters.length > 0 && (
         <div className="mt-3">
           <label className={labelCls} htmlFor={`code-${idSuffix}`}>
             ประเภทซ้อม
@@ -274,7 +329,7 @@ export function LogForm({
             className={inputCls}
             {...form.register("runningWorkoutCode")}
           >
-            {masters.map((m) => (
+            {loggableMasters.map((m) => (
               <option key={m.code} value={m.code}>
                 {m.nameTh} · {m.nameEn}
               </option>
@@ -670,7 +725,11 @@ export function LogForm({
 
       <div className="mt-4 flex gap-3">
         <Button type="submit" disabled={form.formState.isSubmitting}>
-          {form.formState.isSubmitting ? "กำลังบันทึก…" : "บันทึกผลจริง"}
+          {form.formState.isSubmitting
+            ? "กำลังบันทึก…"
+            : isEdit
+              ? "บันทึกการแก้ไข"
+              : "บันทึกผลจริง"}
         </Button>
         <Button
           type="button"
