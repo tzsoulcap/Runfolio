@@ -1,5 +1,10 @@
 // Thai display formatting (§17: ปี ค.ศ. หน่วย km/นาที/วินาที).
-import type { RunningTarget } from "@/lib/domain/master";
+import type {
+  CountMode,
+  MuscleGroup,
+  RunningTarget,
+  StrengthPrescription,
+} from "@/lib/domain/master";
 import type { DerivedPlanStatus } from "@/lib/domain/plan";
 import { parseDateOnly } from "@/lib/domain/week";
 
@@ -126,6 +131,51 @@ export function formatStructuredDetail(
     }
   }
   return recoveryBits.length > 0 ? recoveryBits.join(" · ") : null;
+}
+
+export const MUSCLE_GROUP_TH: Record<MuscleGroup, string> = {
+  SINGLE_LEG: "ขาเดี่ยว",
+  GLUTES_HIPS: "ก้นและสะโพก",
+  CALVES_ANKLES: "น่องและข้อเท้า",
+  CORE: "แกนกลาง",
+};
+
+export const COUNT_MODE_TH: Record<CountMode, string> = {
+  TOTAL: "รวมนับเดียว",
+  PER_SIDE: "ต่อข้าง",
+  TOTAL_ALTERNATING: "รวมสลับข้าง",
+  PER_DIRECTION: "ต่อทิศทาง",
+};
+
+const COUNT_SUFFIX_TH: Record<CountMode, string> = {
+  TOTAL: "",
+  PER_SIDE: "ต่อข้าง",
+  TOTAL_ALTERNATING: "รวมสลับข้าง",
+  PER_DIRECTION: "ต่อทิศทาง",
+};
+
+export function formatPrescriptionTh(
+  p: StrengthPrescription,
+  repLabel: "REPS" | "STEPS" = "REPS",
+): string {
+  const unit =
+    p.measurement === "REPS"
+      ? repLabel === "STEPS"
+        ? "ก้าว"
+        : "ครั้ง"
+      : "วินาที";
+  const dose =
+    p.measurement === "REPS" ? p.reps : p.durationSec;
+  const parts = [
+    `${p.sets} เซ็ต × ${dose} ${unit}${COUNT_SUFFIX_TH[p.countMode]}`,
+  ];
+  if (p.loadKg !== null) {
+    parts.push(p.loadKg === 0 ? "น้ำหนักตัว" : `${p.loadKg} kg`);
+  }
+  if (p.restSec !== undefined) {
+    parts.push(`พัก ${p.restSec} วิ`);
+  }
+  return parts.join(" · ");
 }
 
 export const STATUS_TH: Record<DerivedPlanStatus, string> = {

@@ -211,13 +211,28 @@ export const ExerciseDoseSchema = z.union([
 ]);
 export type ExerciseDose = z.infer<typeof ExerciseDoseSchema>;
 
-export const StrengthPrescriptionSchema = ExerciseDoseSchema.and(
-  z.object({
-    sets: z.number().int().positive(),
-    loadKg: z.number().min(0).nullable(),
-    restSec: z.number().positive().optional(),
+// Built as an explicit union, not ExerciseDoseSchema.and(...): intersection
+// drops the members' strictness, and §11 forbids reps on TIME (and
+// durationSec on REPS) in prescriptions too.
+const prescriptionBase = {
+  sets: z.number().int().positive(),
+  loadKg: z.number().min(0).nullable(),
+  restSec: z.number().positive().optional(),
+};
+export const StrengthPrescriptionSchema = z.discriminatedUnion("measurement", [
+  z.strictObject({
+    measurement: z.literal("REPS"),
+    reps: z.number().int().positive(),
+    countMode: CountModeSchema,
+    ...prescriptionBase,
   }),
-);
+  z.strictObject({
+    measurement: z.literal("TIME"),
+    durationSec: z.number().positive(),
+    countMode: z.enum(["TOTAL", "PER_SIDE"]),
+    ...prescriptionBase,
+  }),
+]);
 export type StrengthPrescription = z.infer<typeof StrengthPrescriptionSchema>;
 
 export const StrengthExerciseMasterSchema = z.object({

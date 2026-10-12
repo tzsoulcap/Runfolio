@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { derivePlanStatus, PlanDraftSchema } from "@/lib/domain/plan";
+import {
+  derivePlanStatus,
+  PlanDraftSchema,
+  StrengthPlanDraftSchema,
+} from "@/lib/domain/plan";
 
 describe("derivePlanStatus", () => {
   it("maps log outcome, skip, missed, and planned per §5", () => {
@@ -175,6 +179,113 @@ describe("PlanDraftSchema", () => {
         ...BASE,
         runningTarget: { kind: "DISTANCE", distanceM: 6000 },
         plannedStartTime: "25:00",
+      }).success,
+    ).toBe(false);
+  });
+});
+
+const STRENGTH_BASE = {
+  date: "2026-10-13",
+  activityType: "STRENGTH",
+  exercises: [
+    {
+      exerciseCode: "BULGARIAN_SPLIT_SQUAT",
+      variant: "STANDARD",
+      prescription: {
+        measurement: "REPS",
+        sets: 3,
+        reps: 10,
+        countMode: "PER_SIDE",
+        loadKg: 0,
+      },
+    },
+    {
+      exerciseCode: "PLANK",
+      variant: "STANDARD",
+      prescription: {
+        measurement: "TIME",
+        sets: 3,
+        durationSec: 45,
+        countMode: "TOTAL",
+        loadKg: 0,
+      },
+    },
+  ],
+} as const;
+
+describe("StrengthPlanDraftSchema", () => {
+  it("accepts a §12-style session with reps + time exercises", () => {
+    const parsed = StrengthPlanDraftSchema.safeParse({
+      ...STRENGTH_BASE,
+      title: "Legs and core",
+      plannedStartTime: "18:00",
+      note: "เย็น",
+    });
+    expect(parsed.success).toBe(true);
+  });
+
+  it("allows the same exercise twice for circuits", () => {
+    const parsed = StrengthPlanDraftSchema.safeParse({
+      ...STRENGTH_BASE,
+      exercises: [STRENGTH_BASE.exercises[0], STRENGTH_BASE.exercises[0]],
+    });
+    expect(parsed.success).toBe(true);
+  });
+
+  it("rejects an empty exercise list", () => {
+    expect(
+      StrengthPlanDraftSchema.safeParse({ ...STRENGTH_BASE, exercises: [] })
+        .success,
+    ).toBe(false);
+  });
+
+  it("rejects a TIME dose carrying reps and a dose with no sets", () => {
+    expect(
+      StrengthPlanDraftSchema.safeParse({
+        ...STRENGTH_BASE,
+        exercises: [
+          {
+            exerciseCode: "PLANK",
+            variant: "STANDARD",
+            prescription: {
+              measurement: "TIME",
+              sets: 3,
+              durationSec: 45,
+              reps: 10,
+              countMode: "TOTAL",
+              loadKg: 0,
+            },
+          },
+        ],
+      }).success,
+    ).toBe(false);
+    expect(
+      StrengthPlanDraftSchema.safeParse({
+        ...STRENGTH_BASE,
+        exercises: [
+          {
+            ...STRENGTH_BASE.exercises[0],
+            prescription: {
+              ...STRENGTH_BASE.exercises[0].prescription,
+              sets: 0,
+            },
+          },
+        ],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects invalid start time and blank title", () => {
+    expect(
+      StrengthPlanDraftSchema.safeParse({
+        ...STRENGTH_BASE,
+        plannedStartTime: "6:30",
+      }).success,
+    ).toBe(false);
+    expect(
+      StrengthPlanDraftSchema.safeParse({
+        ...STRENGTH_BASE,
+        title: "",
       }).success,
     ).toBe(false);
   });

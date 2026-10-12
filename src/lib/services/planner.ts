@@ -3,15 +3,18 @@ import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import {
   dailyPlans,
+  plannedStrengthExercises,
   planItems,
   raceGoals,
   runningWorkoutMasters,
+  strengthExerciseMasters,
   weeklyPlans,
   workoutLogs,
 } from "@/lib/db/schema";
 import {
   derivePlanStatus,
   PlanDraftSchema,
+  StrengthPlanDraftSchema,
   type DerivedPlanStatus,
 } from "@/lib/domain/plan";
 import {
@@ -33,6 +36,7 @@ export type DayWithItems = typeof dailyPlans.$inferSelect & {
         movingDurationSec: number | null;
       } | null;
       status: DerivedPlanStatus;
+      exercises: Array<typeof plannedStrengthExercises.$inferSelect>;
     }
   >;
 };
@@ -50,6 +54,15 @@ export async function listRunningMasters() {
     .from(runningWorkoutMasters)
     .where(eq(runningWorkoutMasters.isActive, true))
     .orderBy(asc(runningWorkoutMasters.sortOrder));
+}
+
+// Active strength masters for the plan form, grouped by muscle in the UI.
+export async function listStrengthMasters() {
+  return db
+    .select()
+    .from(strengthExerciseMasters)
+    .where(eq(strengthExerciseMasters.isActive, true))
+    .orderBy(asc(strengthExerciseMasters.sortOrder));
 }
 
 async function ensureWeek(tx: DbTx, userId: string, monday: string) {
@@ -140,6 +153,32 @@ async function bumpRevision(
   return bumped[0].revision;
 }
 
+// Shared insert preamble: week/day lookup, rest-day guard, next sortOrder.
+async function prepareDayInsert(tx: DbTx, userId: string, date: string) {
+  const monday = mondayOf(date);
+  const { week } = await ensureWeek(tx, userId, monday);
+  const [day] = await tx
+    .select()
+    .from(dailyPlans)
+    .where(
+      and(eq(dailyPlans.weeklyPlanId, week.id), eq(dailyPlans.date, date)),
+    )
+    .limit(1);
+  if (!day) throw new ServiceError("NOT_FOUND", "day not found");
+  if (day.isRestDay) {
+    throw new ServiceError("CONFLICT", "cannot add a session to a rest day");
+  }
+  const siblings = await tx
+    .select({ sortOrder: planItems.sortOrder })
+    .from(planItems)
+    .where(
+      and(eq(planItems.dailyPlanId, day.id), isNull(planItems.deletedAt)),
+    );
+  const sortOrder =
+    siblings.reduce((m, s) => Math.max(m, s.sortOrder), -1) + 1;
+  return { week, day, sortOrder };
+}
+
 export async function addPlanItem(
   userId: string,
   rawDraft: unknown,
@@ -151,22 +190,11 @@ export async function addPlanItem(
   }
   const draft = parsed.data;
   return db.transaction(async (tx) => {
-    const monday = mondayOf(draft.date);
-    const { week } = await ensureWeek(tx, userId, monday);
-    const [day] = await tx
-      .select()
-      .from(dailyPlans)
-      .where(
-        and(
-          eq(dailyPlans.weeklyPlanId, week.id),
-          eq(dailyPlans.date, draft.date),
-        ),
-      )
-      .limit(1);
-    if (!day) throw new ServiceError("NOT_FOUND", "day not found");
-    if (day.isRestDay) {
-      throw new ServiceError("CONFLICT", "cannot add a session to a rest day");
-    }
+    const { week, day, sortOrder } = await prepareDayInsert(
+      tx,
+      userId,
+      draft.date,
+    );
     const [master] = await tx
       .select()
       .from(runningWorkoutMasters)
@@ -202,17 +230,6 @@ export async function addPlanItem(
     if (!runningTarget) {
       throw validation("non-race plans need a target");
     }
-    const siblings = await tx
-      .select({ sortOrder: planItems.sortOrder })
-      .from(planItems)
-      .where(
-        and(
-          eq(planItems.dailyPlanId, day.id),
-          isNull(planItems.deletedAt),
-        ),
-      );
-    const sortOrder =
-      siblings.reduce((m, s) => Math.max(m, s.sortOrder), -1) + 1;
     const [item] = await tx
       .insert(planItems)
       .values({
@@ -237,6 +254,76 @@ export async function addPlanItem(
     if (!item) {
       throw new ServiceError("CONFLICT", "plan insert failed; retry");
     }
+    const revision = await bumpRevision(tx, week.id, expectedRevision);
+    return { item, revision };
+  });
+}
+
+export async function addStrengthPlanItem(
+  userId: string,
+  rawDraft: unknown,
+  expectedRevision: number,
+) {
+  const parsed = StrengthPlanDraftSchema.safeParse(rawDraft);
+  if (!parsed.success) {
+    throw validation(parsed.error.issues[0]?.message ?? "invalid draft");
+  }
+  const draft = parsed.data;
+  return db.transaction(async (tx) => {
+    const { week, day, sortOrder } = await prepareDayInsert(
+      tx,
+      userId,
+      draft.date,
+    );
+    const codes = [...new Set(draft.exercises.map((e) => e.exerciseCode))];
+    const masters = await tx
+      .select()
+      .from(strengthExerciseMasters)
+      .where(inArray(strengthExerciseMasters.code, codes));
+    const byCode = new Map(masters.map((m) => [m.code, m]));
+    for (const code of codes) {
+      const master = byCode.get(code);
+      if (!master || !master.isActive) {
+        throw new ServiceError("NOT_FOUND", "exercise master not found");
+      }
+    }
+    const [item] = await tx
+      .insert(planItems)
+      .values({
+        dailyPlanId: day.id,
+        activityType: "STRENGTH",
+        title: draft.title ?? "Strength",
+        plannedStartTime: draft.plannedStartTime,
+        note: draft.note,
+        sortOrder,
+        planState: "SCHEDULED",
+      })
+      .returning();
+    if (!item) {
+      throw new ServiceError("CONFLICT", "plan insert failed; retry");
+    }
+    await tx.insert(plannedStrengthExercises).values(
+      draft.exercises.map((e, index) => {
+        const master = byCode.get(e.exerciseCode);
+        return {
+          planItemId: item.id,
+          exerciseCode: e.exerciseCode,
+          variant: e.variant,
+          prescription: e.prescription,
+          sortOrder: index,
+          masterSnapshot: master
+            ? {
+                code: master.code,
+                nameTh: master.nameTh,
+                nameEn: master.nameEn,
+                muscleGroup: master.muscleGroup,
+                repLabel: master.repLabel,
+                guidance: master.guidance,
+              }
+            : null,
+        };
+      }),
+    );
     const revision = await bumpRevision(tx, week.id, expectedRevision);
     return { item, revision };
   });
@@ -391,12 +478,30 @@ export async function listWeek(userId: string, monday: string, today: string) {
             ),
           );
   const logByPlan = new Map(logs.map((l) => [l.planItemId, l]));
+  const strengthIds = items
+    .filter((i) => i.activityType === "STRENGTH")
+    .map((i) => i.id);
+  const planned =
+    strengthIds.length === 0
+      ? []
+      : await db
+          .select()
+          .from(plannedStrengthExercises)
+          .where(inArray(plannedStrengthExercises.planItemId, strengthIds))
+          .orderBy(asc(plannedStrengthExercises.sortOrder));
+  const exercisesByItem = new Map<string, typeof planned>();
+  for (const row of planned) {
+    const list = exercisesByItem.get(row.planItemId) ?? [];
+    list.push(row);
+    exercisesByItem.set(row.planItemId, list);
+  }
   const itemsByDay = new Map<string, DayWithItems["items"]>();
   for (const item of items) {
     const log = logByPlan.get(item.id) ?? null;
     const day = days.find((d) => d.id === item.dailyPlanId);
     const entry = {
       ...item,
+      exercises: exercisesByItem.get(item.id) ?? [],
       log: log
         ? {
             id: log.id,

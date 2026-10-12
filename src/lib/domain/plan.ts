@@ -4,8 +4,12 @@ import {
   IntensityTargetSchema,
   NonRestWorkoutCodeSchema,
   RunningTargetSchema,
+  StrengthPrescriptionSchema,
 } from "./master";
 import { DateOnlySchema } from "./week";
+
+// Shared HH:mm shape for planned start times (schemas + client pre-check).
+export const PLANNED_START_TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 // Validated plan draft (§5, §11, §16 addPlanItem). RACE_DAY carries a goal
 // link and no typed target: the service pulls distance from the goal.
@@ -19,7 +23,7 @@ export const PlanDraftSchema = z
     goalId: z.string().uuid("expected goal uuid").optional(),
     plannedStartTime: z
       .string()
-      .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "expected HH:mm")
+      .regex(PLANNED_START_TIME_PATTERN, "expected HH:mm")
       .optional(),
     note: z.string().max(2000).optional(),
   })
@@ -55,6 +59,29 @@ export const PlanDraftSchema = z
     }
   });
 export type PlanDraft = z.infer<typeof PlanDraftSchema>;
+
+// Strength session draft (§5, §11, §12): one PlanItem with sub-exercises.
+// The same code may repeat (circuits); order is the array order.
+export const StrengthPlanDraftSchema = z.object({
+  date: DateOnlySchema,
+  activityType: z.literal("STRENGTH"),
+  title: z.string().trim().min(1).max(120).optional(),
+  exercises: z
+    .array(
+      z.object({
+        exerciseCode: z.string().min(1),
+        variant: z.string().min(1),
+        prescription: StrengthPrescriptionSchema,
+      }),
+    )
+    .min(1, "strength sessions need at least one exercise"),
+  plannedStartTime: z
+    .string()
+    .regex(PLANNED_START_TIME_PATTERN, "expected HH:mm")
+    .optional(),
+  note: z.string().max(2000).optional(),
+});
+export type StrengthPlanDraft = z.infer<typeof StrengthPlanDraftSchema>;
 
 // Display status of a plan item, derived on read (§5). Completed/Partial come
 // from the linked active log; Missed is computed, never stored.

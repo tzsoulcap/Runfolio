@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import { RUNNING_MASTERS, STRENGTH_MASTERS } from "@/lib/db/seed-data";
 import {
+  ExerciseDoseSchema,
   IntensityTargetSchema,
   RunningRepeatSchema,
   RunningWorkoutMasterSchema,
   StepTargetSchema,
   StrengthExerciseMasterSchema,
+  StrengthPrescriptionSchema,
 } from "@/lib/domain/master";
 
 describe("running workout masters", () => {
@@ -278,5 +280,203 @@ describe("strength exercise masters", () => {
       countMode: "PER_DIRECTION",
     });
     expect(walk?.repLabel).toBe("STEPS");
+  });
+
+  // §9 default table pin: measurement / count mode / dose per code.
+  it("all 14 defaults match the §9 table", () => {
+    const expected: Record<string, Record<string, number | string>> = {
+      BULGARIAN_SPLIT_SQUAT: {
+        measurement: "REPS",
+        sets: 3,
+        reps: 10,
+        countMode: "PER_SIDE",
+      },
+      SL_RDL: { measurement: "REPS", sets: 3, reps: 12, countMode: "PER_SIDE" },
+      WALKING_LUNGES: {
+        measurement: "REPS",
+        sets: 3,
+        reps: 20,
+        countMode: "TOTAL_ALTERNATING",
+      },
+      STEP_UPS: {
+        measurement: "REPS",
+        sets: 3,
+        reps: 12,
+        countMode: "PER_SIDE",
+      },
+      GLUTE_BRIDGE: {
+        measurement: "REPS",
+        sets: 3,
+        reps: 15,
+        countMode: "TOTAL",
+      },
+      CLAMSHELL: {
+        measurement: "REPS",
+        sets: 3,
+        reps: 20,
+        countMode: "PER_SIDE",
+      },
+      LATERAL_BAND_WALK: {
+        measurement: "REPS",
+        sets: 3,
+        reps: 15,
+        countMode: "PER_DIRECTION",
+      },
+      STANDING_CALF_RAISE: {
+        measurement: "REPS",
+        sets: 3,
+        reps: 20,
+        countMode: "TOTAL",
+      },
+      SEATED_CALF_RAISE: {
+        measurement: "REPS",
+        sets: 3,
+        reps: 15,
+        countMode: "TOTAL",
+      },
+      TIBIALIS_RAISE: {
+        measurement: "REPS",
+        sets: 3,
+        reps: 20,
+        countMode: "TOTAL",
+      },
+      PLANK: { measurement: "TIME", sets: 3, durationSec: 45, countMode: "TOTAL" },
+      SIDE_PLANK: {
+        measurement: "TIME",
+        sets: 3,
+        durationSec: 30,
+        countMode: "PER_SIDE",
+      },
+      DEAD_BUG: {
+        measurement: "REPS",
+        sets: 3,
+        reps: 12,
+        countMode: "TOTAL_ALTERNATING",
+      },
+      BIRD_DOG: {
+        measurement: "REPS",
+        sets: 3,
+        reps: 10,
+        countMode: "PER_SIDE",
+      },
+    };
+    expect(Object.keys(expected)).toHaveLength(14);
+    for (const m of STRENGTH_MASTERS) {
+      expect(
+        m.defaultPrescription,
+        `${m.code} default differs from §9`,
+      ).toMatchObject(expected[m.code] ?? {});
+    }
+  });
+});
+
+describe("ExerciseDoseSchema (§11)", () => {
+  it("REPS must not carry durationSec; TIME must not carry reps", () => {
+    expect(
+      ExerciseDoseSchema.safeParse({
+        measurement: "REPS",
+        reps: 10,
+        durationSec: 30,
+        countMode: "TOTAL",
+      }).success,
+    ).toBe(false);
+    expect(
+      ExerciseDoseSchema.safeParse({
+        measurement: "TIME",
+        durationSec: 45,
+        reps: 10,
+        countMode: "TOTAL",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("TIME allows only TOTAL and PER_SIDE count modes", () => {
+    expect(
+      ExerciseDoseSchema.safeParse({
+        measurement: "TIME",
+        durationSec: 45,
+        countMode: "TOTAL_ALTERNATING",
+      }).success,
+    ).toBe(false);
+    expect(
+      ExerciseDoseSchema.safeParse({
+        measurement: "TIME",
+        durationSec: 45,
+        countMode: "PER_DIRECTION",
+      }).success,
+    ).toBe(false);
+    for (const countMode of ["TOTAL", "PER_SIDE"] as const) {
+      expect(
+        ExerciseDoseSchema.safeParse({
+          measurement: "TIME",
+          durationSec: 45,
+          countMode,
+        }).success,
+      ).toBe(true);
+    }
+  });
+
+  it("requires positive integer reps and positive duration", () => {
+    expect(
+      ExerciseDoseSchema.safeParse({
+        measurement: "REPS",
+        reps: 0,
+        countMode: "TOTAL",
+      }).success,
+    ).toBe(false);
+    expect(
+      ExerciseDoseSchema.safeParse({
+        measurement: "REPS",
+        reps: 10.5,
+        countMode: "TOTAL",
+      }).success,
+    ).toBe(false);
+    expect(
+      ExerciseDoseSchema.safeParse({
+        measurement: "TIME",
+        durationSec: -5,
+        countMode: "TOTAL",
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe("StrengthPrescriptionSchema (§11)", () => {
+  it("loadKg 0 means bodyweight, null means unrecorded, negative rejected", () => {
+    const base = {
+      measurement: "REPS",
+      reps: 10,
+      countMode: "TOTAL",
+      sets: 3,
+    } as const;
+    expect(
+      StrengthPrescriptionSchema.safeParse({ ...base, loadKg: 0 }).success,
+    ).toBe(true);
+    expect(
+      StrengthPrescriptionSchema.safeParse({ ...base, loadKg: null }).success,
+    ).toBe(true);
+    expect(
+      StrengthPrescriptionSchema.safeParse({ ...base, loadKg: -2 }).success,
+    ).toBe(false);
+  });
+
+  it("requires a positive integer set count and positive rest", () => {
+    const base = {
+      measurement: "REPS",
+      reps: 10,
+      countMode: "TOTAL",
+      loadKg: 0,
+    } as const;
+    expect(
+      StrengthPrescriptionSchema.safeParse({ ...base, sets: 0 }).success,
+    ).toBe(false);
+    expect(
+      StrengthPrescriptionSchema.safeParse({ ...base, sets: 3, restSec: 0 })
+        .success,
+    ).toBe(false);
+    expect(
+      StrengthPrescriptionSchema.safeParse({ ...base, sets: 3, restSec: 60 })
+        .success,
+    ).toBe(true);
   });
 });

@@ -324,7 +324,7 @@ export function AddPlanForm({
   return (
     <form
       onSubmit={form.handleSubmit(onSubmit)}
-      className="rounded-card border border-line bg-paper p-4"
+      className="w-full rounded-card border border-line bg-paper p-4"
       aria-label={`ฟอร์มเพิ่มแผนวันที่ ${date}`}
     >
       <div>

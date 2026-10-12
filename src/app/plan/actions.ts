@@ -7,6 +7,7 @@ import { saveWorkoutLog } from "@/lib/services/logging";
 import { ServiceError } from "@/lib/services/errors";
 import {
   addPlanItem,
+  addStrengthPlanItem,
   setRestDay,
   unsetRestDay,
 } from "@/lib/services/planner";
@@ -40,7 +41,9 @@ function toResult(err: unknown): ActionResult {
           code: err.code,
           message: err.message.includes("race goal")
             ? "ไม่พบเป้าหมายที่เลือก"
-            : "ไม่พบข้อมูล",
+            : err.message.includes("exercise master")
+              ? "ไม่พบท่าที่เลือก"
+              : "ไม่พบข้อมูล",
         };
       case "UNAUTHENTICATED":
         return {
@@ -86,6 +89,47 @@ export async function addPlanAction(input: {
       note: input.note && input.note.length > 0 ? input.note : undefined,
     };
     const { revision } = await addPlanItem(
+      userId,
+      draft,
+      input.expectedRevision,
+    );
+    revalidatePath("/plan");
+    revalidatePath("/");
+    return { ok: true, revision };
+  } catch (err) {
+    return toResult(err);
+  }
+}
+
+export async function addStrengthPlanAction(input: {
+  date: string;
+  title?: string;
+  exercises: Array<{
+    exerciseCode: string;
+    variant: string;
+    prescription: unknown;
+  }>;
+  plannedStartTime?: string;
+  note?: string;
+  expectedRevision: number;
+}): Promise<ActionResult> {
+  try {
+    const userId = await requireUserId();
+    // Server re-validates everything (§11): StrengthPlanDraftSchema owns it.
+    const draft = {
+      date: input.date,
+      activityType: "STRENGTH" as const,
+      ...(input.title && input.title.trim().length > 0
+        ? { title: input.title.trim() }
+        : {}),
+      exercises: input.exercises,
+      plannedStartTime:
+        input.plannedStartTime && input.plannedStartTime.length > 0
+          ? input.plannedStartTime
+          : undefined,
+      note: input.note && input.note.length > 0 ? input.note : undefined,
+    };
+    const { revision } = await addStrengthPlanItem(
       userId,
       draft,
       input.expectedRevision,

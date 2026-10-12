@@ -14,8 +14,16 @@ import {
 } from "@/lib/domain/week";
 import { getOwnProfile } from "@/lib/services/profile";
 import { listGoals } from "@/lib/services/goals";
-import { listRunningMasters, listWeek } from "@/lib/services/planner";
+import {
+  listRunningMasters,
+  listStrengthMasters,
+  listWeek,
+} from "@/lib/services/planner";
 import { DaySection } from "@/features/planner/day-section";
+import type {
+  MuscleGroup,
+  StrengthPrescription,
+} from "@/lib/domain/master";
 
 const WEEKDAY_SHORT = ["จ", "อ", "พ", "พฤ", "ศ", "ส", "อา"];
 
@@ -41,11 +49,13 @@ async function PlanContent({ week }: { week: string | undefined }) {
     : mondayOf(today);
   const dates = weekDates(monday);
 
-  const [{ week: weekRow, days }, masters, goals] = await Promise.all([
-    listWeek(userId, monday, today),
-    listRunningMasters(),
-    listGoals(userId),
-  ]);
+  const [{ week: weekRow, days }, masters, strength, goals] =
+    await Promise.all([
+      listWeek(userId, monday, today),
+      listRunningMasters(),
+      listStrengthMasters(),
+      listGoals(userId),
+    ]);
   const formMasters = masters.map((m) => ({
     code: m.code,
     nameTh: m.nameTh,
@@ -53,6 +63,17 @@ async function PlanContent({ week }: { week: string | undefined }) {
     defaultTarget: m.defaultTarget,
     zoneMin: m.zoneMin,
     zoneMax: m.zoneMax,
+  }));
+  const strengthOptions = strength.map((m) => ({
+    code: m.code,
+    nameTh: m.nameTh,
+    nameEn: m.nameEn,
+    muscleGroup: m.muscleGroup as MuscleGroup,
+    repLabel: m.repLabel as "REPS" | "STEPS",
+    defaultVariant: m.defaultVariant,
+    defaultPrescription: m.defaultPrescription as StrengthPrescription,
+    guidance: m.guidance,
+    hint: m.hint,
   }));
   const dayByDate = new Map(days.map((d) => [d.date, d]));
   const hasItems = days.some((d) => d.items.length > 0);
@@ -125,6 +146,7 @@ async function PlanContent({ week }: { week: string | undefined }) {
             date={d}
             day={dayByDate.get(d)}
             masters={formMasters}
+            strengthMasters={strengthOptions}
             goals={goals}
             revision={weekRow?.revision ?? 1}
             today={today}

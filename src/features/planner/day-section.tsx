@@ -5,6 +5,7 @@ import type { DerivedPlanStatus } from "@/lib/domain/plan";
 import { LogForm } from "@/features/journal/log-form";
 import {
   formatDateTh,
+  formatPrescriptionTh,
   formatStructuredDetail,
   formatStructuredMain,
   formatTargetTh,
@@ -15,6 +16,7 @@ import type { GoalOption } from "@/lib/services/goals";
 import type { DayWithItems } from "@/lib/services/planner";
 
 import { AddPlanForm, type MasterOption } from "./add-plan-form";
+import { AddStrengthForm, type ExerciseOption } from "./add-strength-form";
 import { UnsetRestButton } from "./unset-rest-button";
 
 // Exhaustive by construction: adding a status without a badge is a type error.
@@ -44,10 +46,40 @@ function TargetLine({ item }: { item: DayWithItems["items"][number] }) {
   );
 }
 
+function StrengthLines({ item }: { item: DayWithItems["items"][number] }) {
+  return (
+    <div className="mt-0.5">
+      <ol className="list-decimal space-y-0.5 pl-5 text-base text-muted">
+        {item.exercises.map((e) => {
+          const snapshot = e.masterSnapshot as {
+            nameTh?: string;
+            repLabel?: string;
+          } | null;
+          return (
+            <li key={e.id}>
+              {snapshot?.nameTh ?? e.exerciseCode}{" "}
+              {formatPrescriptionTh(
+                e.prescription,
+                snapshot?.repLabel === "STEPS" ? "STEPS" : "REPS",
+              )}
+            </li>
+          );
+        })}
+      </ol>
+      {item.plannedStartTime && (
+        <p className="mt-0.5 text-base text-muted">
+          เริ่ม {item.plannedStartTime}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function DaySection({
   date,
   day,
   masters,
+  strengthMasters,
   goals,
   revision,
   today,
@@ -55,6 +87,7 @@ export function DaySection({
   date: string;
   day: DayWithItems | undefined;
   masters: MasterOption[];
+  strengthMasters: ExerciseOption[];
   goals: GoalOption[];
   revision: number;
   today: string;
@@ -101,7 +134,11 @@ export function DaySection({
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <h3 className="text-lg font-semibold">{item.title}</h3>
-                  <TargetLine item={item} />
+                  {item.activityType === "STRENGTH" ? (
+                    <StrengthLines item={item} />
+                  ) : (
+                    <TargetLine item={item} />
+                  )}
                   {item.note && (
                     <p className="mt-1 text-base text-charcoal">{item.note}</p>
                   )}
@@ -120,6 +157,10 @@ export function DaySection({
                   >
                     ดูผลที่บันทึก
                   </Link>
+                ) : item.activityType === "STRENGTH" ? (
+                  <p className="text-base text-muted">
+                    การบันทึกผล Strength จะมาในรอบถัดไป
+                  </p>
                 ) : (
                   <LogForm
                     planItemId={item.id}
@@ -132,13 +173,20 @@ export function DaySection({
               </div>
             </article>
           ))}
-          <AddPlanForm
-            date={date}
-            masters={masters}
-            goals={goals}
-            blockers={blockers}
-            revision={revision}
-          />
+          <div className="flex flex-wrap gap-2">
+            <AddPlanForm
+              date={date}
+              masters={masters}
+              goals={goals}
+              blockers={blockers}
+              revision={revision}
+            />
+            <AddStrengthForm
+              date={date}
+              exercises={strengthMasters}
+              revision={revision}
+            />
+          </div>
         </div>
       )}
     </section>
