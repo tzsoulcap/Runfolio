@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 // ⋯ menu, always available alongside drag (§5): move-to-date with a date
 // picker plus move up/down. The only way to move without dragging on mobile.
@@ -25,10 +25,40 @@ export function MoveMenu({
 }) {
   const [open, setOpen] = useState(false);
   const [pickedDate, setPickedDate] = useState(dayDate);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+
+    function closeOutside(event: Event) {
+      if (event.target instanceof Node && !containerRef.current?.contains(event.target)) {
+        setOpen(false);
+      }
+    }
+
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      event.stopPropagation();
+      setOpen(false);
+      triggerRef.current?.focus();
+    }
+
+    // Capture before drag handlers; let the outside tap perform its action.
+    document.addEventListener("pointerdown", closeOutside, true);
+    document.addEventListener("focusin", closeOutside);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOutside, true);
+      document.removeEventListener("focusin", closeOutside);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [open]);
 
   return (
-    <div className="relative z-10 shrink-0">
+    <div ref={containerRef} className="relative z-10 shrink-0">
       <button
+        ref={triggerRef}
         type="button"
         aria-expanded={open}
         aria-label={`ตัวเลือก${title}`}

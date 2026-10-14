@@ -1,5 +1,5 @@
 import { config } from "dotenv";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { addDays, mondayOf } from "../../src/lib/domain/week";
 
 config({ path: ".env.local" });
@@ -18,6 +18,64 @@ async function openForm(page: Page) {
   await section.getByRole("button", { name: `เพิ่มการซ้อมวันที่ ${today}`, exact: true }).click();
   return section;
 }
+
+async function seedMenuPlans(page: Page) {
+  const userId = await login(page);
+  const { addPlanItem, getOrCreateWeek } = await import("../../src/lib/services/planner");
+  const { RUNNING_MASTERS } = await import("../../src/lib/db/seed-data");
+  const { week } = await getOrCreateWeek(userId, mondayOf(today));
+  let revision = week.revision;
+  for (const code of ["EASY_RUN", "STRIDES"]) {
+    const master = RUNNING_MASTERS.find((master) => master.code === code)!;
+    const saved = await addPlanItem(userId, {
+      date: today, activityType: "RUNNING", runningWorkoutCode: code,
+      runningTarget: master.defaultTarget,
+    }, revision);
+    revision = saved.revision;
+  }
+  await page.goto(`/plan#day-${today}`);
+  return page.locator(`#day-${today}`);
+}
+
+test("plan options dismiss outside, keep date input usable and close with Escape", async ({ page, isMobile }) => {
+  const section = await seedMenuPlans(page);
+  const activate = (target: Locator) => isMobile ? target.tap() : target.click();
+  const trigger = section.getByRole("button", { name: "ตัวเลือกStrides", exact: true });
+  const menu = section.getByRole("menu", { name: "ย้ายStrides", exact: true });
+  await activate(trigger);
+  await menu.getByLabel("ย้ายไปวันอื่น").fill(addDays(today, 1));
+  await expect(menu).toBeVisible();
+  await activate(menu.getByText("ย้ายไปวันอื่น", { exact: true }));
+  await expect(menu).toBeVisible();
+  await activate(page.getByRole("heading", { name: "แผนซ้อม", exact: true }));
+  await expect(menu).toHaveCount(0);
+  await expect(trigger).toHaveAttribute("aria-expanded", "false");
+
+  await activate(trigger);
+  await menu.getByLabel("ย้ายไปวันอื่น").focus();
+  await page.keyboard.press("Escape");
+  await expect(menu).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+  await activate(trigger);
+  await page.getByRole("button", { name: "เมนูสัปดาห์", exact: true }).focus();
+  await expect(menu).toHaveCount(0);
+});
+
+test("opening another plan's options closes the previous options", async ({ page, isMobile }) => {
+  const section = await seedMenuPlans(page);
+  const activate = (target: Locator) => isMobile ? target.tap() : target.click();
+  const strides = section.getByRole("button", { name: "ตัวเลือกStrides", exact: true });
+  const easy = section.getByRole("button", { name: "ตัวเลือกEasy Run", exact: true });
+  await activate(strides);
+  await expect(section.getByRole("menu")).toHaveCount(1);
+  await activate(easy);
+  await expect(section.getByRole("menu")).toHaveCount(1);
+  await expect(strides).toHaveAttribute("aria-expanded", "false");
+  await expect(easy).toHaveAttribute("aria-expanded", "true");
+  await expect(section.getByRole("menu", { name: "ย้ายEasy Run", exact: true })).toBeVisible();
+  await activate(easy);
+  await expect(section.getByRole("menu")).toHaveCount(0);
+});
 
 test("pace pickers persist minutes and seconds, strides count and logged runs can be copied", async ({ page }) => {
   await login(page);
