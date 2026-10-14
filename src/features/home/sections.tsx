@@ -3,10 +3,10 @@ import { Check, ChevronRight, Dumbbell, Target } from "lucide-react";
 
 import { RunningIcon } from "@/components/running-icon";
 import type { StripDay, WeekSummary } from "@/lib/domain/home";
-import { countdownDays } from "@/lib/domain/home";
 import { paceLabelFor } from "@/lib/domain/metrics";
 import type { JournalEntry } from "@/lib/services/journal";
-import type { raceGoals } from "@/lib/db/schema";
+import type { GoalWithProgress } from "@/lib/services/goals";
+import { GoalSummaryCard } from "@/features/goals/goal-summary-card";
 import {
   formatDateTh,
   formatDayMonthTh,
@@ -14,7 +14,6 @@ import {
   formatDistanceM,
   formatHMS,
   formatKm,
-  goalCountdownTh,
   logDisplayName,
   weekdayTh,
 } from "@/lib/format";
@@ -105,33 +104,25 @@ export function WeekSummaryCard({ summary }: { summary: WeekSummary }) {
   );
 }
 
-type GoalRow = typeof raceGoals.$inferSelect;
-
-export function GoalCard({ goal, today }: { goal: GoalRow | null; today: string }) {
+export function GoalCard({ goals, today }: { goals: GoalWithProgress[]; today: string }) {
+  const primary = goals.find(goal => goal.isPrimary);
+  const others = goals.filter(goal => goal.id !== primary?.id);
   return (
-    <section aria-label="เป้าหมายหลัก">
-      <Link href="/goals" className="flex min-h-[clamp(68px,16vw,78px)] items-center gap-3 rounded-[14px] border border-line px-3 py-2.5 transition-colors hover:bg-ivory">
-        <Target className="size-[30px] shrink-0 text-forest" strokeWidth={2.3} aria-hidden />
-        <span className="min-w-0 flex-1">
-          <span className="block text-[clamp(12px,3.1vw,14px)] text-muted">เป้าหมายหลัก</span>
-          {goal ? (
-            <span className="mt-0.5 flex flex-wrap items-baseline gap-x-4 gap-y-0.5">
-              <span className="text-[clamp(26px,6.5vw,30px)] leading-tight font-semibold tracking-tight">{goal.distanceCode}</span>
-              <span className="text-xs text-muted sm:text-sm">{goal.eventDate ? formatDateTh(goal.eventDate) : "ยังไม่กำหนดวันแข่ง"}</span>
-              {goal.eventName && <span className="w-full text-xs text-muted">{goal.eventName}</span>}
-              {goal.goalType === "TARGET_TIME" && goal.targetTimeSec !== null && <span className="text-xs text-muted">เป้าเวลา {formatHMS(goal.targetTimeSec)}</span>}
-            </span>
-          ) : (
-            <span className="mt-1 block text-sm">ยังไม่มีเป้าหมายหลัก</span>
-          )}
-        </span>
-        {goal?.eventDate ? (
-          <span className="shrink-0 rounded-lg bg-lime-soft px-2.5 py-1.5 text-[clamp(12px,3.1vw,14px)] font-medium text-[#476922]">{goalCountdownTh(countdownDays(goal.eventDate, today))}</span>
-        ) : (
-          <span className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-forest">{goal ? "ดูเป้าหมาย" : "ตั้งเป้าหมาย"}<ChevronRight className="size-4" aria-hidden /></span>
+    <div className="space-y-3">
+      <section aria-label="เป้าหมายหลัก">
+        {primary ? <GoalSummaryCard goal={primary} today={today} compact /> : (
+          <Link href="/goals" className="flex min-h-20 items-center gap-3 rounded-[14px] border border-line px-3 py-2.5">
+            <Target className="size-7 shrink-0 text-forest" aria-hidden />
+            <span className="min-w-0 flex-1"><span className="block text-xs text-muted">เป้าหมายหลัก</span><span className="block text-sm">ยังไม่มีเป้าหมายหลัก</span></span>
+            <span className="text-xs font-medium text-forest">ตั้งเป้าหมาย</span><ChevronRight className="size-4 shrink-0" aria-hidden />
+          </Link>
         )}
-      </Link>
-    </section>
+      </section>
+      {others.length > 0 && <section aria-label="เป้าหมายอื่น">
+        <h2 className="mb-2 text-base font-semibold">เป้าหมายอื่น</h2>
+        <ul className="space-y-2">{others.map(goal => <li key={goal.id}><GoalSummaryCard goal={goal} today={today} compact /></li>)}</ul>
+      </section>}
+    </div>
   );
 }
 

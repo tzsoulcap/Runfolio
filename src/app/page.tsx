@@ -10,7 +10,7 @@ import {
   type TodayItem,
 } from "@/lib/domain/home";
 import { mondayOf, todayInTimeZone, weekDates } from "@/lib/domain/week";
-import { getPrimaryGoal } from "@/lib/services/goals";
+import { listGoalsWithProgress } from "@/lib/services/goals";
 import { listLogs, listLogsInRange } from "@/lib/services/journal";
 import { listWeek } from "@/lib/services/planner";
 import { getOwnProfile } from "@/lib/services/profile";
@@ -60,11 +60,11 @@ async function HomeContent() {
   const monday = mondayOf(today);
   const dates = weekDates(monday);
 
-  const [{ days }, rangeLogs, latest, goal] = await Promise.all([
+  const [{ days }, rangeLogs, latest, goals] = await Promise.all([
     listWeek(userId, monday, today),
     listLogsInRange(userId, dates[0] ?? monday, dates[6] ?? monday),
     listLogs(userId, { limit: 3 }).then((r) => r.entries),
-    getPrimaryGoal(userId),
+    listGoalsWithProgress(userId, true),
   ]);
   const dayByDate = new Map(days.map((d) => [d.date, d]));
   const todayDay = dayByDate.get(today);
@@ -104,7 +104,7 @@ async function HomeContent() {
           <WeekStrip days={strip} />
           <WeekSummaryCard summary={summary} />
         </div>
-        <GoalCard goal={goal} today={today} />
+        <GoalCard goals={goals} today={today} />
         <LatestJournal entries={latest} />
       </div>
     </div>

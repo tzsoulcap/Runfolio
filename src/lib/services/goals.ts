@@ -3,6 +3,8 @@ import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { raceGoals, workoutLogs } from "@/lib/db/schema";
 import { GOAL_DISTANCES, GoalInputSchema } from "@/lib/domain/goal";
+import type { RunningBest } from "@/lib/domain/running-best";
+import { listRunningBests } from "./running-bests";
 
 import { ServiceError } from "./errors";
 
@@ -92,6 +94,15 @@ export async function listAllGoals(userId: string) {
     );
 }
 
+export type GoalWithProgress = typeof raceGoals.$inferSelect & { best: RunningBest | null };
+
+export async function listGoalsWithProgress(userId: string, activeOnly = false): Promise<GoalWithProgress[]> {
+  const [goals, bests] = await Promise.all([listAllGoals(userId), listRunningBests(userId)]);
+  const byDistance = new Map(bests.map(best => [best.distanceCode as string, best]));
+  return goals.filter(goal => !activeOnly || goal.status === "ACTIVE")
+    .map(goal => ({ ...goal, best: byDistance.get(goal.distanceCode) ?? null }));
+}
+
 export async function createGoal(
   userId: string,
   input: unknown,
@@ -127,6 +138,7 @@ export async function createGoal(
 export type GoalDetail = {
   goal: typeof raceGoals.$inferSelect;
   resultLog: ResultCandidate | null;
+  best: RunningBest | null;
 };
 
 export async function getGoal(
@@ -139,7 +151,9 @@ export async function getGoal(
     .where(and(eq(raceGoals.id, goalId), eq(raceGoals.userId, userId)))
     .limit(1);
   if (!goal) throw new ServiceError("NOT_FOUND", "goal not found");
-  if (!goal.resultWorkoutLogId) return { goal, resultLog: null };
+  const bests = await listRunningBests(userId);
+  const best = bests.find(row => row.distanceCode === goal.distanceCode) ?? null;
+  if (!goal.resultWorkoutLogId) return { goal, resultLog: null, best };
   const [resultLog] = await db
     .select({
       id: workoutLogs.id,
@@ -157,7 +171,7 @@ export async function getGoal(
       ),
     )
     .limit(1);
-  return { goal, resultLog: resultLog ?? null };
+  return { goal, resultLog: resultLog ?? null, best };
 }
 
 export async function updateGoal(

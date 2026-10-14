@@ -1,0 +1,26 @@
+[
+  {
+    "route": "/goals",
+    "width": 320,
+    "overflow": 0,
+    "violations": []
+  },
+  {
+    "route": "/goals",
+    "width": 390,
+    "overflow": 0,
+    "violations": []
+  },
+  {
+    "route": "/",
+    "width": 320,
+    "overflow": 0,
+    "violations": []
+  },
+  {
+    "route": "/",
+    "width": 390,
+    "overflow": 0,
+    "violations": []
+  }
+]

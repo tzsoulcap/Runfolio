@@ -5,6 +5,7 @@ Running Journal — สมุดซ้อมวิ่งส่วนตัว: �
 - Spec: `Modern_Running_Journal_SPEC.md` (v1.1)
 - Stack: Next.js App Router + TypeScript strict + Tailwind + Supabase (Postgres/Drizzle + Auth Google-only), ดู `docs/adr/0003-vercel-supabase.md`
 - ภาษา UI: ไทย
+- การ์ดเป้าหมายแสดงเวลา/Pace และผลดีที่สุดอัตโนมัติทั้งเป้าหมายหลักและอื่น ใช้เวลารวมก่อนและแสดงป้ายเมื่อใช้เวลาเคลื่อนที่; ผลที่วิ่งไกลกว่าระบุเป็นเวลาเทียบ
 - เมนู ⋯ ของแต่ละแผนคัดลอกรายการซ้อมไปวันที่เลือกได้ รวมท่า Strength ครบทุกท่าและค่าที่ตั้งไว้
 - Pace เลือกนาที/วินาทีได้บนมือถือ และระยะรายสัปดาห์รวมระยะที่ระบุใน Strides/Interval ทุกช่วง
 - ภาพช่วยจำ Strength ครบ 16 ท่าอยู่ใน `public/exercises/` ใช้ภาพ WebP และเปิดขยายได้จากฟอร์ม/รายละเอียดท่า; prompt ชุดภาพอยู่ใน `docs/qa/exercise-image-prompts.json`
@@ -23,6 +24,7 @@ cp .env.example .env.local
 # ใส่ค่าจริงใน .env.local (ห้าม commit): ดูหัวข้อ Environment
 npm run db:migrate   # ใช้ DIRECT_URL (5432)
 npm run db:seed      # master 10 running + 16 strength, รันซ้ำได้
+npm run db:rebuild-bests # สร้างสถิติเทียบเป้าจากประวัติใหม่หลัง import/เปลี่ยนกติกา
 npm run db:verify    # ตรวจจำนวน master + RLS
 npm run dev          # http://localhost:3000
 ```

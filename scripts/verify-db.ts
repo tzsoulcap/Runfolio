@@ -12,6 +12,7 @@ const EXPECTED = [
   "plan_templates",
   "planned_strength_exercises",
   "race_goals",
+  "running_bests",
   "running_workout_masters",
   "strength_exercise_masters",
   "user_profiles",

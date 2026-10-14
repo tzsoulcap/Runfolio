@@ -24,6 +24,7 @@ import { getGoal, listResultCandidates } from "@/lib/services/goals";
 import { getOwnProfile } from "@/lib/services/profile";
 import { PagePlaceholder } from "@/components/page-placeholder";
 import { GoalForm, type GoalFormInitial } from "@/features/goals/goal-form";
+import { GoalComparison } from "@/features/goals/goal-summary-card";
 import {
   AchieveGoalButton,
   ArchiveGoalButton,
@@ -125,6 +126,12 @@ async function GoalDetail({ id }: { id: string }) {
           </dd>
         </div>
       </dl>
+
+      <section aria-label="ความคืบหน้าเป้าหมาย" className="surface mt-4">
+        <h2 className="section-title">ดีที่สุดที่บันทึก</h2>
+        <GoalComparison goal={goal} best={detail.best} />
+        {detail.best && <Link href={`/journal/${detail.best.sourceLogId}`} className="mt-2 inline-flex min-h-11 items-center text-sm font-medium text-forest underline underline-offset-4">ดูบันทึกที่ใช้อ้างอิง</Link>}
+      </section>
 
       {goal.goalType === "TARGET_TIME" && (
         <section aria-label="เวลาเป้าหมาย" className="surface mt-4">

@@ -24,6 +24,7 @@ import {
 import { todayInTimeZone, zonedTimeToUtc } from "@/lib/domain/week";
 
 import { ServiceError } from "./errors";
+import { considerRunningBest, lockRunningBests, replaceRunningBestSource } from "./running-bests";
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -256,6 +257,7 @@ export async function saveWorkoutLog(
   const actual = parsed.data;
   try {
     return await db.transaction(async (tx) => {
+      await lockRunningBests(tx, userId);
       const existing = await findByMutationId(
         tx,
         userId,
@@ -340,6 +342,7 @@ export async function saveWorkoutLog(
           })),
         );
       }
+      await considerRunningBest(tx, userId, log);
       return { log, deduped: false };
     });
   } catch (err) {
@@ -478,6 +481,7 @@ export async function deleteWorkoutLog(
   logId: string,
 ): Promise<{ planItemId: string | null }> {
   return db.transaction(async (tx) => {
+    await lockRunningBests(tx, userId);
     const [log] = await tx
       .select()
       .from(workoutLogs)
@@ -501,6 +505,7 @@ export async function deleteWorkoutLog(
       .update(raceGoals)
       .set({ resultWorkoutLogId: null, updatedAt: new Date() })
       .where(eq(raceGoals.resultWorkoutLogId, log.id));
+    if (log.activityType === "RUNNING") await replaceRunningBestSource(tx, userId, log.id);
     return { planItemId: log.planItemId };
   });
 }
@@ -510,6 +515,7 @@ export async function undeleteWorkoutLog(
   logId: string,
 ): Promise<{ log: typeof workoutLogs.$inferSelect }> {
   return db.transaction(async (tx) => {
+    await lockRunningBests(tx, userId);
     const [log] = await tx
       .select()
       .from(workoutLogs)
@@ -541,6 +547,7 @@ export async function undeleteWorkoutLog(
       .where(eq(workoutLogs.id, log.id))
       .returning();
     if (!restored) throw new ServiceError("CONFLICT", "log restore failed");
+    if (restored.activityType === "RUNNING") await considerRunningBest(tx, userId, restored);
     return { log: restored };
   });
 }
@@ -558,6 +565,7 @@ export async function updateWorkoutLog(
   }
   const actual = parsed.data;
   return db.transaction(async (tx) => {
+    await lockRunningBests(tx, userId);
     const log = await lockOwnedLog(tx, userId, logId, "RUNNING");
     const timezone = await profileTimezone(tx, userId);
     assertNotFuture(actual.performedDate, todayInTimeZone(timezone));
@@ -611,6 +619,7 @@ export async function updateWorkoutLog(
         })),
       );
     }
+    await replaceRunningBestSource(tx, userId, log.id, updated);
     return { log: updated };
   });
 }

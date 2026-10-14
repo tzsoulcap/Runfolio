@@ -8,6 +8,7 @@ import {
   jsonb,
   numeric,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   unique,
@@ -16,6 +17,8 @@ import {
 } from "drizzle-orm/pg-core";
 
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
+import type { GoalDistanceCode } from "@/lib/domain/goal";
+import type { TimeBasis } from "@/lib/domain/running-best";
 
 import type {
   IntensityTarget,
@@ -239,6 +242,8 @@ export const workoutLogs = pgTable(
       .on(t.planItemId)
       .where(sql`${t.planItemId} IS NOT NULL AND ${t.deletedAt} IS NULL`),
     index("workout_logs_user_date").on(t.userId, desc(t.performedDate)),
+    index("workout_logs_running_distance").on(t.userId, t.distanceM)
+      .where(sql`${t.activityType} = 'RUNNING' AND ${t.deletedAt} IS NULL`),
     index("workout_logs_user_activity_date").on(
       t.userId,
       t.activityType,
@@ -254,6 +259,24 @@ export const workoutLogs = pgTable(
     ),
   ],
 );
+
+// Derived all-time comparisons. Logs remain the source of truth; these four
+// rows per runner are updated in the same transaction as running log changes.
+export const runningBests = pgTable("running_bests", {
+  userId: uuid("user_id").notNull(),
+  distanceCode: text("distance_code").$type<GoalDistanceCode>().notNull(),
+  sourceLogId: uuid("source_log_id").references(() => workoutLogs.id, { onDelete: "cascade" }).notNull(),
+  sourceDistanceM: decimal2("source_distance_m").notNull(),
+  sourceDurationSec: integer("source_duration_sec").notNull(),
+  timeBasis: text("time_basis").$type<TimeBasis>().notNull(),
+  performedDate: date("performed_date", { mode: "string" }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
+}, t => [
+  primaryKey({ columns: [t.userId, t.distanceCode] }),
+  check("running_bests_distance", sql`${t.distanceCode} IN ('5K', '10K', '21K', '42K')`),
+  check("running_bests_time_basis", sql`${t.timeBasis} IN ('ELAPSED', 'MOVING')`),
+  check("running_bests_positive", sql`${t.sourceDistanceM} > 0 AND ${t.sourceDurationSec} > 0`),
+]);
 
 export const raceGoals = pgTable(
   "race_goals",

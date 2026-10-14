@@ -15,7 +15,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "tsx scripts/seed.ts",
     "db:seed-demo": "tsx scripts/seed-demo.ts",
-    "db:verify": "tsx scripts/verify-db.ts"
+    "db:verify": "tsx scripts/verify-db.ts",
+    "db:rebuild-bests": "tsx scripts/rebuild-running-bests.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

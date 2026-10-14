@@ -548,6 +548,9 @@ function toRunningActual(input: RunActualInput) {
 }
 
 function revalidateLogs() {
+  revalidatePath("/goals");
+  revalidatePath("/goals/[id]", "page");
+  revalidatePath("/progress");
   revalidatePath("/plan");
   revalidatePath("/journal");
   revalidatePath("/");

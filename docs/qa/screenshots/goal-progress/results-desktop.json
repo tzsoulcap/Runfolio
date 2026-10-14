@@ -1,0 +1,14 @@
+[
+  {
+    "route": "/goals",
+    "width": 1440,
+    "overflow": 0,
+    "violations": []
+  },
+  {
+    "route": "/",
+    "width": 1440,
+    "overflow": 0,
+    "violations": []
+  }
+]
