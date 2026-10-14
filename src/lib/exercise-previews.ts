@@ -1,6 +1,10 @@
 type ExercisePreviewInfo = { nameEn: string; alt: string };
 
 const PREVIEWS: Record<string, ExercisePreviewInfo> = {
+  REVERSE_LUNGE_TO_KNEE_DRIVE: {
+    nameEn: "Reverse Lunge to Knee Drive",
+    alt: "ก้าวขาข้างหนึ่งถอยหลังย่อตัวทำลันจ์ แล้วกลับขึ้นมายกเข่าข้างเดิมโดยยืนทรงตัวบนขาอีกข้าง",
+  },
   BULGARIAN_SPLIT_SQUAT: {
     nameEn: "Bulgarian Split Squat",
     alt: "ท่าเริ่มและท่าย่อตัวของบัลแกเรียนสปลิตสควอต โดยวางเท้าหลังบนม้านั่ง",

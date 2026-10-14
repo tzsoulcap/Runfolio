@@ -29,6 +29,13 @@
       "when": 1791817593919,
       "tag": "0003_add-single-arm-dumbbell-row",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791966055581,
+      "tag": "0004_add-reverse-lunge-and-fix-pace",
+      "breakpoints": true
     }
   ]
 }

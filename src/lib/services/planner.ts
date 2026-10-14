@@ -13,6 +13,7 @@ import {
 } from "@/lib/db/schema";
 import {
   derivePlanStatus,
+  CopyPlanItemSchema,
   MovePlanItemSchema,
   PlanDraftSchema,
   StrengthPlanDraftSchema,
@@ -326,6 +327,78 @@ export async function addStrengthPlanItem(
       }),
     );
     const revision = await bumpRevision(tx, week.id, expectedRevision);
+    return { item, revision };
+  });
+}
+
+// Copy a single plan, including its ordered exercise prescriptions. Logs and
+// completion state belong to the original; the copy is always scheduled.
+export async function copyPlanItem(userId: string, rawInput: unknown) {
+  const parsed = CopyPlanItemSchema.safeParse(rawInput);
+  if (!parsed.success) throw validation("invalid copy input");
+  const input = parsed.data;
+  return db.transaction(async (tx) => {
+    const [source] = await tx.select({ weekId: weeklyPlans.id, dayId: dailyPlans.id })
+      .from(planItems)
+      .innerJoin(dailyPlans, eq(planItems.dailyPlanId, dailyPlans.id))
+      .innerJoin(weeklyPlans, eq(dailyPlans.weeklyPlanId, weeklyPlans.id))
+      .where(and(eq(planItems.id, input.planItemId), isNull(planItems.deletedAt), eq(weeklyPlans.userId, userId)))
+      .limit(1);
+    if (!source) throw new ServiceError("NOT_FOUND", "plan item not found");
+    const { week: destWeek } = await ensureWeek(tx, userId, mondayOf(input.targetDate));
+    const revisions = new Map<string, number>();
+    for (const id of [...new Set([source.weekId, destWeek.id])].sort()) {
+      const [week] = await tx.select({ revision: weeklyPlans.revision }).from(weeklyPlans)
+        .where(eq(weeklyPlans.id, id)).for("update").limit(1);
+      if (week) revisions.set(id, week.revision);
+    }
+    if (revisions.get(source.weekId) !== input.expectedRevision) {
+      throw new ServiceError("CONFLICT", "week changed; refetch and retry");
+    }
+    const crossWeek = source.weekId !== destWeek.id;
+    if (crossWeek && input.expectedDestRevision === undefined) {
+      throw validation("cross-week copies need the destination revision");
+    }
+    const destRevision = crossWeek ? input.expectedDestRevision! : input.expectedRevision;
+    if (revisions.get(destWeek.id) !== destRevision) {
+      throw new ServiceError("CONFLICT", "destination week changed; refetch and retry");
+    }
+    const [original] = await tx.select().from(planItems)
+      .where(and(eq(planItems.id, input.planItemId), eq(planItems.dailyPlanId, source.dayId), isNull(planItems.deletedAt)))
+      .for("update").limit(1);
+    if (!original) throw new ServiceError("CONFLICT", "week changed; refetch and retry");
+    const { day, sortOrder } = await prepareDayInsert(tx, userId, input.targetDate);
+    const [item] = await tx.insert(planItems).values({
+      dailyPlanId: day.id,
+      activityType: original.activityType,
+      runningWorkoutCode: original.runningWorkoutCode,
+      title: original.title,
+      plannedStartTime: original.plannedStartTime,
+      runningTarget: original.runningTarget,
+      intensityTarget: original.intensityTarget,
+      raceGoalId: original.raceGoalId,
+      note: original.note,
+      masterSnapshot: original.masterSnapshot,
+      sortOrder,
+      planState: "SCHEDULED",
+    }).returning();
+    if (!item) throw new ServiceError("CONFLICT", "plan insert failed; retry");
+    if (original.activityType === "STRENGTH") {
+      const exercises = await tx.select().from(plannedStrengthExercises)
+        .where(eq(plannedStrengthExercises.planItemId, original.id))
+        .orderBy(asc(plannedStrengthExercises.sortOrder));
+      if (exercises.length > 0) await tx.insert(plannedStrengthExercises).values(
+        exercises.map((exercise) => ({
+          planItemId: item.id,
+          exerciseCode: exercise.exerciseCode,
+          variant: exercise.variant,
+          prescription: exercise.prescription,
+          masterSnapshot: exercise.masterSnapshot,
+          sortOrder: exercise.sortOrder,
+        })),
+      );
+    }
+    const revision = await bumpRevision(tx, destWeek.id, destRevision);
     return { item, revision };
   });
 }

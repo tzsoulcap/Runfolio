@@ -1,6 +1,6 @@
 {
   "generator": "image_gen.imagegen (built-in)",
-  "purpose": "Exercise recognition previews for the 15 active Runfolio strength exercise masters.",
+  "purpose": "Exercise recognition previews for the 16 active Runfolio strength exercise masters.",
   "files": "public/exercises/*.webp",
   "delivery": {
     "width": 1200,
@@ -8,7 +8,7 @@
     "format": "WebP",
     "quality": 82
   },
-  "notes": "Twelve images show two movement phases. Bird Dog, Dead Bug and Step Ups use a single pose with a clearer view of limb positions. These are original generated illustrations, not copied source photographs.",
+  "notes": "Thirteen images show two movement phases. Bird Dog, Dead Bug and Step Ups use a single pose with a clearer view of limb positions. These are original generated illustrations, not copied source photographs.",
   "poseReferences": [
     {
       "title": "ACE: Single-arm Row",
@@ -98,6 +98,11 @@
       "code": "SINGLE_ARM_DUMBBELL_ROW",
       "asset": "public/exercises/single-arm-dumbbell-row.webp",
       "prompt": "Use case: scientific-educational. Asset type: exercise-recognition preview for Runfolio, a mobile running journal. Create one original, clean 3:2 landscape raster illustration of SINGLE-ARM DUMBBELL ROW, two equal side-by-side poses (start on left, end on right), with the same adult athletic person in each pose. Style: refined flat editorial fitness illustration, anatomically clear human proportions, lightly shaded natural warm tan skin, short dark hair, dark forest-green sleeveless sports top, muted sage shorts, cream trainers, crisp dark green outlines. Plain warm ivory #f5f3ed background; restrained lime accents on equipment; no scenery. Left: near-side right arm hangs straight holding ONE dumbbell under shoulder; left hand and left knee supported on a horizontal bench, right foot on floor, torso nearly horizontal with neutral straight back. Right: EXACT SAME support hand, support knee, grounded foot and torso; right elbow bends and travels back close to torso, dumbbell beside right lower ribs/hip. Important: same side performs the row in both panels. Three-quarter side view clearly separates the grounded leg from the bench-supported leg. Each figure has exactly TWO arms and TWO legs, with clearly readable silhouettes; no extra limbs, no ghost limbs, no overlapping motion trails. Full bodies, bench, hands and feet within frame with comfortable margins. Use a small simple right-pointing arrow between the poses, but absolutely no text, titles, letters, numbers, watermarks or logos. Accuracy and exercise recognition at small mobile preview sizes matter more than decorative styling. This is one exercise preview, not a contact sheet of different exercises."
+    },
+    {
+      "code": "REVERSE_LUNGE_TO_KNEE_DRIVE",
+      "asset": "public/exercises/reverse-lunge-to-knee-drive.webp",
+      "prompt": "Use case: scientific-educational. Asset type: exercise recognition preview for Runfolio mobile strength planner. Create ONE original landscape 3:2 polished editorial fitness illustration showing REVERSE LUNGE TO KNEE DRIVE in two equal side-by-side poses, start left, finish right, with a small dark-green right arrow between. Match the established Runfolio series: athletic adult with warm tan skin, short dark hair, forest-green sleeveless sports top, muted sage shorts, cream trainers; natural realistic proportions, crisp dark-green outlines, soft restrained shading, plain warm ivory #f5f3ed background with subtle floor shadows. The same person in both panels, side-three-quarter view facing RIGHT. LEFT POSE: athlete's LEFT foot remains planted in FRONT on the floor, front left knee bent approximately 90 degrees; RIGHT foot has stepped BACK, right heel lifted, right knee lowered near the floor into a reverse lunge. RIGHT POSE: push up on the SAME LEFT support leg, which straightens, while bringing the SAME RIGHT leg from behind forward and up, right hip and knee bent 90 degrees, right thigh horizontal in a knee drive. The raised knee is the leg that was behind. Hands on hips in both poses so arms do not obscure legs. Exactly TWO arms and TWO legs per figure, distinct leg attachment points, natural joints, no extra limbs or ghost motion trails, no merging legs, no equipment or step platform. Full heads, hands, feet inside frame with generous margins. Absolutely NO text, titles, letters, numbers, logos, or watermark. Prioritize correct leg continuity and exercise recognition on a small mobile screen."
     }
   ]
 }

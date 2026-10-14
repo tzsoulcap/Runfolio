@@ -4,9 +4,17 @@ import {
   formatDayMonthTh,
   formatDayRange,
   formatKm,
+  formatIntensityTh,
   formatPrescriptionTh,
   parsePaceInput,
 } from "@/lib/format";
+
+describe("pace intensity labels", () => {
+  it("labels a single pace and a pace range in minutes and seconds", () => {
+    expect(formatIntensityTh({kind: "PACE", fastSecPerKm: 360, slowSecPerKm: 360})).toBe("Pace 6:00");
+    expect(formatIntensityTh({kind: "PACE", fastSecPerKm: 360, slowSecPerKm: 390})).toBe("Pace 6:00–6:30");
+  });
+});
 
 describe("parsePaceInput", () => {
   it("parses m:ss and plain seconds", () => {

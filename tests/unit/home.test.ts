@@ -136,6 +136,15 @@ describe("deriveTodayState", () => {
 });
 
 describe("summarizeWeek", () => {
+  it("includes the specified distance in Strides without guessing recovery distance", () => {
+    const summary = summarizeWeek([{items: [{activityType: "RUNNING", planState: "SCHEDULED", log: null, runningTarget: {
+      kind: "STRUCTURED", steps: [{kind: "REPEAT", repeatCount: 4, includeFinalRecovery: false, steps: [
+        {kind: "STEP", phase: "WORK", target: {kind: "DISTANCE", distanceM: 80}, intensity: {kind: "NONE"}},
+        {kind: "STEP", phase: "RECOVERY", target: {kind: "OPEN", instruction: "พัก"}, intensity: {kind: "NONE"}},
+      ]}],
+    }}]}], []);
+    expect(summary.plannedDistanceM).toBe(320);
+  });
   const plan = (
     activityType = "RUNNING",
     runningTarget: TodayItem["runningTarget"] = {
@@ -145,12 +154,49 @@ describe("summarizeWeek", () => {
     log: TodayItem["log"] = null,
   ) => ({ activityType, runningTarget, planState: "SCHEDULED", log });
 
+  it("counts warmup, repeats and cooldown, omitting only the final recovery", () => {
+    const step = (distanceM: number, phase: "WORK" | "RECOVERY" | "WARMUP" | "COOLDOWN") => ({kind: "STEP" as const, phase, target: {kind: "DISTANCE" as const, distanceM}, intensity: {kind: "NONE" as const}});
+    for (const includeFinalRecovery of [false, true]) {
+      const s = summarizeWeek([{items: [plan("RUNNING", {kind: "STRUCTURED", steps: [
+        step(1000, "WARMUP"),
+        {kind: "REPEAT", repeatCount: 3, includeFinalRecovery, steps: [step(800, "WORK"), step(200, "RECOVERY")]},
+        step(500, "COOLDOWN"),
+      ]})]}], []);
+      expect(s.plannedDistanceM).toBe(includeFinalRecovery ? 4500 : 4300);
+      expect(s.unmeasuredStructuredItems).toBe(0);
+    }
+  });
+
+  it("counts an estimated remainder separately from the specified work distance", () => {
+    const s = summarizeWeek([{items: [plan("RUNNING", {kind: "STRUCTURED", estimatedTotalDistanceM: 8000, steps: [
+      {kind: "REPEAT", repeatCount: 5, includeFinalRecovery: false, steps: [
+        {kind: "STEP", phase: "WORK", target: {kind: "DISTANCE", distanceM: 800}, intensity: {kind: "NONE"}},
+        {kind: "STEP", phase: "RECOVERY", target: {kind: "DURATION", durationSec: 120}, intensity: {kind: "NONE"}},
+      ]},
+    ]})]}], []);
+    expect(s.plannedDistanceM).toBe(4000);
+    expect(s.estimatedStructuredM).toBe(4000);
+    expect(s.unmeasuredStructuredItems).toBe(1);
+  });
+
+  it("does not mark an omitted recovery as unmeasured", () => {
+    const s = summarizeWeek([{items: [plan("RUNNING", {kind: "STRUCTURED", steps: [
+      {kind: "REPEAT", repeatCount: 1, includeFinalRecovery: false, steps: [
+        {kind: "STEP", phase: "WORK", target: {kind: "DISTANCE", distanceM: 80}, intensity: {kind: "NONE"}},
+        {kind: "STEP", phase: "RECOVERY", target: {kind: "OPEN", instruction: "พัก"}, intensity: {kind: "NONE"}},
+      ]},
+    ]})]}], []);
+    expect(s.plannedDistanceM).toBe(80);
+    expect(s.unmeasuredStructuredItems).toBe(0);
+  });
+
   it("is all zeros without plans or logs", () => {
     expect(summarizeWeek([], [])).toEqual({
       runningActualM: 0,
       runningActualSec: 0,
       plannedDistanceM: 0,
       estimatedStructuredM: 0,
+      unmeasuredStructuredItems: 0,
       timeBasedItems: 0,
       doneItems: 0,
       partialItems: 0,
@@ -244,7 +290,7 @@ describe("summarizeWeek", () => {
     expect(s.runningActualM).toBe(0);
   });
 
-  it("keeps structured estimates out of the definite planned total", () => {
+  it("includes specified structured distances without counting an estimate twice", () => {
     const s = summarizeWeek(
       [
         {
@@ -273,8 +319,8 @@ describe("summarizeWeek", () => {
       ],
       [],
     );
-    expect(s.plannedDistanceM).toBe(0);
-    expect(s.estimatedStructuredM).toBe(8000);
+    expect(s.plannedDistanceM).toBe(4000);
+    expect(s.estimatedStructuredM).toBe(0);
     expect(s.timeBasedItems).toBe(0);
   });
 });

@@ -144,7 +144,7 @@ async function ProgressContent({
     return s === "" ? "/progress" : `/progress?${s}`;
   };
   const incompletePlan =
-    summary.estimatedStructuredM > 0 || summary.timeBasedItems > 0;
+    summary.unmeasuredStructuredItems > 0 || summary.timeBasedItems > 0;
 
   return (
     <div className="app-page">

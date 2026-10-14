@@ -1,0 +1,38 @@
+[
+  {
+    "name": "pace-picker",
+    "width": 320,
+    "overflow": 0,
+    "violations": []
+  },
+  {
+    "name": "pace-picker",
+    "width": 390,
+    "overflow": 0,
+    "violations": []
+  },
+  {
+    "name": "pace-picker",
+    "width": 1440,
+    "overflow": 0,
+    "violations": []
+  },
+  {
+    "name": "copy-plan",
+    "width": 320,
+    "overflow": 0,
+    "violations": []
+  },
+  {
+    "name": "copy-plan",
+    "width": 390,
+    "overflow": 0,
+    "violations": []
+  },
+  {
+    "name": "copy-plan",
+    "width": 1440,
+    "overflow": 0,
+    "violations": []
+  }
+]

@@ -96,6 +96,7 @@ export type WeekSummary = {
   runningActualSec: number;
   plannedDistanceM: number;
   estimatedStructuredM: number;
+  unmeasuredStructuredItems: number;
   timeBasedItems: number;
   doneItems: number;
   partialItems: number;
@@ -109,7 +110,8 @@ const PLAN_ITEM_TYPES = new Set(["RUNNING", "STRENGTH"]);
 
 // ADR-0001: skipped items leave the completion denominator, partials count
 // separately (no 0.5 score). STRUCTURED estimates stay out of the definite
-// planned total (§4: never present a guess as specified distance).
+// planned total. Explicit distances inside structured steps are specified,
+// including repetitions; recovery without a distance remains unmeasured.
 export function summarizeWeek(
   days: WeekSummaryDay[],
   logs: WeekSummaryLog[],
@@ -119,6 +121,7 @@ export function summarizeWeek(
     runningActualSec: 0,
     plannedDistanceM: 0,
     estimatedStructuredM: 0,
+    unmeasuredStructuredItems: 0,
     timeBasedItems: 0,
     doneItems: 0,
     partialItems: 0,
@@ -144,8 +147,27 @@ export function summarizeWeek(
       const t = item.runningTarget;
       if (t?.kind === "DISTANCE") out.plannedDistanceM += t.distanceM;
       else if (t?.kind === "DURATION") out.timeBasedItems += 1;
-      else if (t?.kind === "STRUCTURED")
-        out.estimatedStructuredM += t.estimatedTotalDistanceM ?? 0;
+      else if (t?.kind === "STRUCTURED") {
+        let specifiedM = 0;
+        let unmeasured = false;
+        for (const block of t.steps) {
+          const steps = block.kind === "REPEAT" ? block.steps : [block];
+          for (const [index, step] of steps.entries()) {
+            const repetitions = block.kind === "REPEAT"
+              ? block.repeatCount - (!block.includeFinalRecovery && index === steps.length - 1 ? 1 : 0)
+              : 1;
+            if (repetitions === 0) continue;
+            if (step.target.kind === "DISTANCE") specifiedM += repetitions * step.target.distanceM;
+            else unmeasured = true;
+          }
+        }
+        out.plannedDistanceM += specifiedM;
+        if (unmeasured) out.unmeasuredStructuredItems += 1;
+        // The estimate describes the whole item: count only its remainder.
+        if (unmeasured && t.estimatedTotalDistanceM !== undefined) {
+          out.estimatedStructuredM += Math.max(0, t.estimatedTotalDistanceM - specifiedM);
+        }
+      }
     }
   }
   // Actuals include off-plan logs: they are real training in this week.

@@ -10,8 +10,9 @@ export function paceSecPerKm(
 
 export function formatPace(pace: number | null): string | null {
   if (pace === null) return null;
-  const m = Math.floor(pace / 60);
-  const s = Math.round(pace % 60);
+  const seconds = Math.floor(pace);
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 

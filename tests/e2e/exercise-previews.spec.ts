@@ -27,7 +27,7 @@ async function noOverflow(page: Page) {
   )).toBeLessThanOrEqual(0);
 }
 
-test("all 15 exercises have previews and viewing images preserves the plan draft", async ({ page }) => {
+test("all 16 exercises have previews and viewing images preserves the plan draft", async ({ page }) => {
   await loginFresh(page);
   await page.goto(`/plan#day-${today}`);
   const section = page.locator(`#day-${today}`);
@@ -45,6 +45,7 @@ test("all 15 exercises have previews and viewing images preserves the plan draft
     await expect.poll(() => image.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
   }
   await noOverflow(page);
+  await form.getByLabel("เลือกท่า").selectOption("SINGLE_ARM_DUMBBELL_ROW");
   const preview = form.getByRole("button", { name: "ดูภาพท่า ดึงดัมเบลแขนเดียว", exact: true });
   await preview.click();
   const dialog = page.getByRole("dialog", { name: "ดึงดัมเบลแขนเดียว", exact: true });

@@ -12,6 +12,7 @@ export function MoveMenu({
   locked,
   onMove,
   onViewDetails,
+  onCopy,
 }: {
   title: string;
   dayDate: string;
@@ -20,17 +21,10 @@ export function MoveMenu({
   locked: boolean;
   onMove: (targetDate: string, targetIndex?: number) => void;
   onViewDetails?: () => void;
+  onCopy: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [pickedDate, setPickedDate] = useState(dayDate);
-
-  if (locked) {
-    return (
-      <span className="sr-only">
-        มีผลบันทึกแล้ว ย้ายไม่ได้
-      </span>
-    );
-  }
 
   return (
     <div className="relative z-10 shrink-0">
@@ -50,6 +44,8 @@ export function MoveMenu({
           className="absolute right-0 z-20 mt-1 w-64 rounded-card border border-line bg-paper p-3 shadow-lg"
         >
           {onViewDetails && <button type="button" role="menuitem" onClick={() => { onViewDetails(); setOpen(false); }} className="mb-2 flex min-h-11 w-full items-center rounded-button px-1 text-left text-sm font-medium text-forest">ดูรายละเอียดแผน</button>}
+          <button type="button" role="menuitem" onClick={() => { onCopy(); setOpen(false); }} className="mb-2 flex min-h-11 w-full items-center rounded-button px-1 text-left text-sm font-medium text-forest">คัดลอกรายการซ้อม</button>
+          {!locked && <>
           <label
             className="mb-1 block text-sm font-medium text-charcoal"
             htmlFor={`mvdate-${dayDate}-${index}`}
@@ -104,6 +100,8 @@ export function MoveMenu({
               เลื่อนลง
             </button>
           </div>
+          </>}
+          {locked && <p className="text-sm text-muted">มีผลบันทึกแล้ว ย้ายไม่ได้</p>}
         </div>
       )}
     </div>

@@ -93,6 +93,8 @@ export const MovePlanItemSchema = z.object({
 });
 export type MovePlanItem = z.infer<typeof MovePlanItemSchema>;
 
+export const CopyPlanItemSchema = MovePlanItemSchema.omit({ targetIndex: true });
+
 // Display status of a plan item, derived on read (§5). Completed/Partial come
 // from the linked active log; Missed is computed, never stored.
 export type DerivedPlanStatus =

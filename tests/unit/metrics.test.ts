@@ -22,6 +22,12 @@ describe("paceSecPerKm", () => {
 });
 
 describe("formatPace", () => {
+  it("truncates fractional seconds without displaying :60", () => {
+    expect(formatPace(479.5)).toBe("7:59");
+    expect(formatPace(479.999)).toBe("7:59");
+    expect(formatPace(480)).toBe("8:00");
+    expect(paceLabelFor(2000, 959)).toBe("7:59");
+  });
   it("formats seconds per km as m:ss", () => {
     expect(formatPace(400)).toBe("6:40");
     expect(formatPace(456)).toBe("7:36");

@@ -24,6 +24,7 @@ import { ServiceError } from "@/lib/services/errors";
 import {
   addPlanItem,
   addStrengthPlanItem,
+  copyPlanItem,
   getWeekRevision,
   movePlanItem,
   setRestDay,
@@ -161,6 +162,24 @@ function toDataResult<T>(err: unknown): DataResult<T> {
     return { ok: false, code: "UNKNOWN", message: "โหลดไม่สำเร็จ ลองใหม่" };
   }
   return r;
+}
+
+export async function copyPlanItemAction(input: {
+  planItemId: string;
+  targetDate: string;
+  expectedRevision: number;
+  expectedDestRevision?: number;
+}): Promise<ActionResult> {
+  try {
+    const userId = await requireUserId();
+    const { revision } = await copyPlanItem(userId, input);
+    revalidatePath("/plan");
+    revalidatePath("/");
+    revalidatePath("/progress");
+    return { ok: true, revision };
+  } catch (err) {
+    return toResult(err);
+  }
 }
 
 export async function addPlanAction(input: {

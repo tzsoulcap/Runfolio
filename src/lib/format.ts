@@ -8,6 +8,7 @@ import type {
 } from "@/lib/domain/master";
 import type { DerivedPlanStatus } from "@/lib/domain/plan";
 import { parseDateOnly } from "@/lib/domain/week";
+import { formatPace } from "@/lib/domain/metrics";
 
 const WEEKDAYS_TH = [
   "จันทร์",
@@ -140,11 +141,9 @@ export function formatIntensityTh(target: IntensityTarget | null | undefined): s
     return `Zone ${target.zoneMin}${target.zoneMax === target.zoneMin ? "" : `–${target.zoneMax}`}`;
   }
   if (target.kind === "EFFORT") return target.label;
-  const pace = (seconds: number) => {
-    const rounded = Math.round(seconds);
-    return `${Math.floor(rounded / 60)}:${String(rounded % 60).padStart(2, "0")}`;
-  };
-  return `${pace(target.fastSecPerKm)}–${pace(target.slowSecPerKm)}/km`;
+  const fast = formatPace(target.fastSecPerKm);
+  const slow = formatPace(target.slowSecPerKm);
+  return `Pace ${fast}${fast === slow ? "" : `–${slow}`}`;
 }
 
 export function formatTargetTh(

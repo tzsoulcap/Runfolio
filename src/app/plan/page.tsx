@@ -159,6 +159,10 @@ async function PlanContent({ week }: { week: string | undefined }) {
         </a>
       </div>
 
+      {planned.unmeasuredStructuredItems > 0 && (
+        <p className="mt-2 text-xs text-muted">รวมระยะทุกช่วงที่ระบุแล้ว ไม่รวมช่วงที่ไม่ระบุระยะ</p>
+      )}
+
       {!hasItems && (
         <p className="mt-4 rounded-card border border-line bg-paper p-4 text-base text-muted">
           สัปดาห์นี้ยังไม่มีแผน กด “เพิ่มการซ้อม” ในวันที่ต้องการได้เลย

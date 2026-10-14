@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 
 import { addPlanAction, setRestDayAction } from "@/app/plan/actions";
@@ -13,6 +13,7 @@ import { FieldError, inputCls, labelCls } from "@/components/ui/field";
 import type { RunningTarget } from "@/lib/domain/master";
 import type { GoalOption } from "@/lib/services/goals";
 import { formatDistanceM, parsePaceInput } from "@/lib/format";
+import { PacePicker } from "./pace-picker";
 
 import {
   blankBlock,
@@ -105,8 +106,8 @@ const FormSchema = z
     if (v.intensityKind === "PACE") {
       const fast = parsePaceInput(v.paceFast ?? "");
       const slow = parsePaceInput(v.paceSlow ?? "");
-      if (fast === null) issue(["paceFast"], "pace แบบ 6:40");
-      if (slow === null) issue(["paceSlow"], "pace แบบ 6:40");
+      if (fast === null || fast <= 0) issue(["paceFast"], "เลือกนาทีและวินาทีมากกว่า 0");
+      if (slow === null || slow <= 0) issue(["paceSlow"], "เลือกนาทีและวินาทีมากกว่า 0");
       if (fast !== null && slow !== null && fast > slow)
         issue(["paceFast"], "pace เร็วต้องไม่ช้ากว่า pace ช้า");
     }
@@ -195,10 +196,12 @@ export function AddPlanForm({
       removeUnlogged: false,
     },
   });
-  const code = form.watch("runningWorkoutCode");
-  const targetKind = form.watch("targetKind");
-  const intensityKind = form.watch("intensityKind");
-  const goalId = form.watch("goalId");
+  const code = useWatch({ control: form.control, name: "runningWorkoutCode" });
+  const targetKind = useWatch({ control: form.control, name: "targetKind" });
+  const intensityKind = useWatch({ control: form.control, name: "intensityKind" });
+  const goalId = useWatch({ control: form.control, name: "goalId" });
+  const paceFast = useWatch({ control: form.control, name: "paceFast" });
+  const paceSlow = useWatch({ control: form.control, name: "paceSlow" });
   const isRest = code === "REST";
   const isRace = code === "RACE_DAY";
   const goal = goals.find((g) => g.id === goalId) ?? null;
@@ -578,33 +581,15 @@ export function AddPlanForm({
             </div>
           )}
           {intensityKind === "PACE" && (
-            <div className="mt-2 grid grid-cols-2 gap-2">
+            <div className="mt-2 grid grid-cols-1 gap-3 min-[400px]:grid-cols-2">
               <div>
-                <label className={labelCls} htmlFor={`pacefast-${date}`}>
-                  Pace เร็ว (m:ss)
-                </label>
-                <input
-                  id={`pacefast-${date}`}
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="6:40"
-                  className={inputCls}
-                  {...form.register("paceFast")}
-                />
+                <PacePicker label="Pace เร็ว" value={paceFast ?? ""}
+                  onChange={(value) => form.setValue("paceFast", value, { shouldDirty: true, shouldValidate: form.formState.isSubmitted })} />
                 <FieldError message={form.formState.errors.paceFast?.message} />
               </div>
               <div>
-                <label className={labelCls} htmlFor={`paceslow-${date}`}>
-                  Pace ช้า (m:ss)
-                </label>
-                <input
-                  id={`paceslow-${date}`}
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="7:30"
-                  className={inputCls}
-                  {...form.register("paceSlow")}
-                />
+                <PacePicker label="Pace ช้า" value={paceSlow ?? ""}
+                  onChange={(value) => form.setValue("paceSlow", value, { shouldDirty: true, shouldValidate: form.formState.isSubmitted })} />
                 <FieldError message={form.formState.errors.paceSlow?.message} />
               </div>
             </div>

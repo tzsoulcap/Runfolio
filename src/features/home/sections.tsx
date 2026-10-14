@@ -66,11 +66,12 @@ export function WeekStrip({ days }: { days: StripDay[] }) {
 }
 
 export function WeekSummaryCard({ summary }: { summary: WeekSummary }) {
-  const definite = summary.plannedDistanceM > 0 && summary.timeBasedItems === 0 && summary.estimatedStructuredM === 0;
+  const definite = summary.plannedDistanceM > 0 && summary.timeBasedItems === 0 && summary.unmeasuredStructuredItems === 0;
   const pct = definite ? Math.min(100, (summary.runningActualM / summary.plannedDistanceM) * 100) : null;
   const extras: string[] = [];
   if (summary.timeBasedItems > 0) extras.push(`${summary.timeBasedItems} เซสชันแบบเวลา`);
   if (summary.estimatedStructuredM > 0) extras.push(`ประมาณ ${formatDistanceM(summary.estimatedStructuredM)}`);
+  if (summary.unmeasuredStructuredItems > 0) extras.push("รวมระยะทุกช่วงที่ระบุแล้ว ไม่รวมช่วงที่ไม่ระบุระยะ");
 
   return (
     <section aria-label="ภาพรวมสัปดาห์" className="border-t border-line pt-3">
@@ -99,7 +100,7 @@ export function WeekSummaryCard({ summary }: { summary: WeekSummary }) {
           <p className="mt-1.5 text-xs text-muted sm:text-sm">Strength</p>
         </div>
       </div>
-      {extras.length > 0 && <p className="mt-2 text-xs text-muted">+ {extras.join(" + ")}</p>}
+      {extras.length > 0 && <p className="mt-2 text-xs text-muted">{extras.join(" · ")}</p>}
     </section>
   );
 }

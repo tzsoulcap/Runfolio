@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Check, Dumbbell, MoreHorizontal } from "lucide-react";
+import { Check, Dumbbell } from "lucide-react";
 
 import { RunningIcon } from "@/components/running-icon";
 import { ExercisePreview } from "@/components/exercise-preview";
@@ -21,6 +21,7 @@ import {
 } from "@/lib/format";
 
 import { MoveMenu } from "./move-menu";
+import { CopyPlanItemSheet } from "./copy-plan-item-sheet";
 import type { DayDTO, PlanItemDTO } from "./types";
 
 const statusCls: Record<DerivedPlanStatus, string> = {
@@ -45,6 +46,7 @@ export function PlanItemCard({
   onMove: (targetDate: string, targetIndex?: number) => void;
 }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [copyOpen, setCopyOpen] = useState(false);
   const locked = item.log !== null;
   const isStrength = item.activityType === "STRENGTH";
   const completed = item.status === "COMPLETED";
@@ -54,7 +56,7 @@ export function PlanItemCard({
   const actualPace = item.log ? paceLabelFor(item.log.distanceM ?? null, item.log.movingDurationSec ?? null) : null;
   const detail = [
     target,
-    isStrength ? null : actualPace ? `${actualPace}/km` : formatIntensityTh(item.intensityTarget),
+    isStrength ? null : actualPace ? `Pace ${actualPace}` : formatIntensityTh(item.intensityTarget),
     isStrength ? null : formatStructuredDetail(item.runningTarget),
     item.note,
     item.plannedStartTime ? `เริ่ม ${item.plannedStartTime}` : null,
@@ -79,8 +81,7 @@ export function PlanItemCard({
               <span className="max-[360px]:sr-only">{STATUS_TH[item.status]}</span>
             </span>
           )}
-          {!overlay && !locked && <MoveMenu title={item.title} dayDate={day.date} index={index} dayLength={dayLength} locked={false} onMove={onMove} onViewDetails={() => setDetailsOpen((current) => !current)} />}
-          {locked && <><MoreHorizontal className="mx-2 size-5 text-muted" aria-hidden /><span className="sr-only">มีผลบันทึกแล้ว ย้ายไม่ได้</span></>}
+          {!overlay && <MoveMenu title={item.title} dayDate={day.date} index={index} dayLength={dayLength} locked={locked} onMove={onMove} onViewDetails={() => setDetailsOpen((current) => !current)} onCopy={() => setCopyOpen(true)} />}
         </div>
         {detailsOpen && <div className="relative z-10 col-span-full mt-2 border-t border-line px-2 py-3 text-sm text-muted">
           {isStrength && (
@@ -117,6 +118,7 @@ export function PlanItemCard({
           <LogForm compactTrigger planItemId={item.id} planDate={day.date} runningWorkoutCode={item.runningWorkoutCode ?? "EASY_RUN"} runningTarget={item.runningTarget} today={today} />
         ))}
       </div>
+      {copyOpen && <CopyPlanItemSheet item={item} sourceDate={day.date} onClose={() => setCopyOpen(false)} />}
     </article>
   );
 }

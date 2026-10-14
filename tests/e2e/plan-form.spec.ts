@@ -72,14 +72,17 @@ test("structured interval default saves and validates", async ({ page }) => {
 
   // Pace intensity parses m:ss end to end.
   await section.getByLabel("รูปแบบความหนัก").selectOption("PACE");
-  await section.getByLabel("Pace เร็ว (m:ss)").fill("6:40");
-  await section.getByLabel("Pace ช้า (m:ss)").fill("7:30");
+  await section.getByLabel("Pace เร็ว นาที", { exact: true }).selectOption("6");
+  await section.getByLabel("Pace เร็ว วินาที", { exact: true }).selectOption("40");
+  await section.getByLabel("Pace ช้า นาที", { exact: true }).selectOption("7");
+  await section.getByLabel("Pace ช้า วินาที", { exact: true }).selectOption("30");
 
   const note = `e2e-structured-${Date.now()}`;
   await section.getByLabel("หมายเหตุ", { exact: true }).fill(note);
   await section.getByRole("button", { name: "เพิ่มแผน", exact: true }).click();
   const row = section.locator("article", { hasText: note });
   await expect(row).toContainText("5 × 800 m");
+  await expect(row).toContainText("Pace 6:40–7:30");
 });
 
 test("rest day sets without a running plan and unsets", async ({ page }) => {
