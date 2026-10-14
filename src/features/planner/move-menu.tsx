@@ -13,6 +13,7 @@ export function MoveMenu({
   onMove,
   onViewDetails,
   onCopy,
+  onDelete,
 }: {
   title: string;
   dayDate: string;
@@ -22,6 +23,7 @@ export function MoveMenu({
   onMove: (targetDate: string, targetIndex?: number) => void;
   onViewDetails?: () => void;
   onCopy: () => void;
+  onDelete?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [pickedDate, setPickedDate] = useState(dayDate);
@@ -56,7 +58,7 @@ export function MoveMenu({
   }, [open]);
 
   return (
-    <div ref={containerRef} className="relative z-10 shrink-0">
+    <div ref={containerRef} className="relative z-20 shrink-0">
       <button
         ref={triggerRef}
         type="button"
@@ -131,7 +133,10 @@ export function MoveMenu({
             </button>
           </div>
           </>}
-          {locked && <p className="text-sm text-muted">มีผลบันทึกแล้ว ย้ายไม่ได้</p>}
+          {onDelete && <button type="button" role="menuitem" disabled={locked}
+            onClick={() => { setOpen(false); onDelete(); }}
+            className="mt-2 flex min-h-11 w-full items-center border-t border-line px-1 pt-2 text-left text-sm font-medium text-red-700 disabled:opacity-50">ลบแผน</button>}
+          {locked && <p className="mt-2 text-sm text-muted">มีผลบันทึกแล้ว ย้ายหรือลบแผนไม่ได้</p>}
         </div>
       )}
     </div>

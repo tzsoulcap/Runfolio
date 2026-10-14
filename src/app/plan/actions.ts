@@ -25,10 +25,12 @@ import {
   addPlanItem,
   addStrengthPlanItem,
   copyPlanItem,
+  deletePlanItem,
   getWeekRevision,
   movePlanItem,
   setRestDay,
   unsetRestDay,
+  undeletePlanItem,
 } from "@/lib/services/planner";
 import {
   applyTemplate,
@@ -92,6 +94,12 @@ function toResult(err: unknown): ActionResult {
       case "CONFLICT": {
         // One chain maps the service message to kind + Thai copy together.
         const msg = err.message;
+        if (msg.includes("active log; cannot delete or restore")) {
+          return { ok: false, code: err.code, conflictKind: "LOCKED", message: "แผนนี้มีผลบันทึกแล้ว ลบแผนไม่ได้" };
+        }
+        if (msg.includes("cannot restore a session to a rest day")) {
+          return { ok: false, code: err.code, conflictKind: "REST", message: "วันนี้เปลี่ยนเป็นวันพักแล้ว เลิกทำการลบไม่ได้" };
+        }
         const [conflictKind, message]: [ConflictKind, string] =
           msg.includes("has logs")
             ? ["OTHER", "วันนี้มีผลบันทึกแล้ว เปลี่ยนเป็นวันพักไม่ได้"]
@@ -296,6 +304,28 @@ export async function movePlanAction(input: {
   } catch (err) {
     return toResult(err);
   }
+}
+
+export async function deletePlanItemAction(input: { planItemId: string; expectedRevision: number }): Promise<ActionResult> {
+  try {
+    const userId = await requireUserId();
+    const result = await deletePlanItem(userId, input);
+    revalidatePath("/plan");
+    revalidatePath("/");
+    revalidatePath("/progress");
+    return { ok: true, revision: result.revision };
+  } catch (err) { return toResult(err); }
+}
+
+export async function undeletePlanItemAction(input: { planItemId: string; expectedRevision: number }): Promise<ActionResult> {
+  try {
+    const userId = await requireUserId();
+    const result = await undeletePlanItem(userId, input);
+    revalidatePath("/plan");
+    revalidatePath("/");
+    revalidatePath("/progress");
+    return { ok: true, revision: result.revision };
+  } catch (err) { return toResult(err); }
 }
 
 export async function getWeekRevisionAction(input: {

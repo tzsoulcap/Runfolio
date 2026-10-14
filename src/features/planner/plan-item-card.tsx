@@ -22,6 +22,7 @@ import {
 
 import { MoveMenu } from "./move-menu";
 import { CopyPlanItemSheet } from "./copy-plan-item-sheet";
+import { RunningTargetDetails } from "./running-target-details";
 import type { DayDTO, PlanItemDTO } from "./types";
 
 const statusCls: Record<DerivedPlanStatus, string> = {
@@ -33,7 +34,7 @@ const statusCls: Record<DerivedPlanStatus, string> = {
 };
 
 export function PlanItemCard({
-  item, day, index, dayLength, today, strengthMasters, handle, overlay, onMove,
+  item, day, index, dayLength, today, strengthMasters, handle, overlay, onMove, onDelete,
 }: {
   item: PlanItemDTO;
   day: DayDTO;
@@ -44,6 +45,7 @@ export function PlanItemCard({
   handle: React.ReactNode;
   overlay?: boolean;
   onMove: (targetDate: string, targetIndex?: number) => void;
+  onDelete?: () => void;
 }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [copyOpen, setCopyOpen] = useState(false);
@@ -81,9 +83,9 @@ export function PlanItemCard({
               <span className="max-[360px]:sr-only">{STATUS_TH[item.status]}</span>
             </span>
           )}
-          {!overlay && <MoveMenu title={item.title} dayDate={day.date} index={index} dayLength={dayLength} locked={locked} onMove={onMove} onViewDetails={() => setDetailsOpen((current) => !current)} onCopy={() => setCopyOpen(true)} />}
+          {!overlay && <MoveMenu title={item.title} dayDate={day.date} index={index} dayLength={dayLength} locked={locked} onMove={onMove} onViewDetails={() => setDetailsOpen((current) => !current)} onCopy={() => setCopyOpen(true)} onDelete={onDelete} />}
         </div>
-        {detailsOpen && <div className="relative z-10 col-span-full mt-2 border-t border-line px-2 py-3 text-sm text-muted">
+        {detailsOpen && <div role="region" aria-label={`รายละเอียดแผน${item.title}`} className="relative z-10 col-span-full mt-2 border-t border-line px-2 py-3 text-sm text-muted">
           {isStrength && (
             <ol className="list-decimal space-y-2 pl-4">
               {item.exercises.map((exercise) => (
@@ -105,7 +107,10 @@ export function PlanItemCard({
             </ol>
           )}
           {item.note && <p className={isStrength ? "mt-2" : ""}>{item.note}</p>}
-          {!isStrength && <p>{formatTargetTh(item.runningTarget)}{formatIntensityTh(item.intensityTarget) ? ` · ${formatIntensityTh(item.intensityTarget)}` : ""}</p>}
+          {!isStrength && <>
+            {formatIntensityTh(item.intensityTarget) && <p className="mb-2 font-medium text-charcoal">ความหนักรวม: {formatIntensityTh(item.intensityTarget)}</p>}
+            <RunningTargetDetails target={item.runningTarget} />
+          </>}
           <button type="button" onClick={() => setDetailsOpen(false)} className="mt-2 min-h-11 font-medium text-forest">ปิดรายละเอียด</button>
         </div>}
         {!overlay && (item.log ? (

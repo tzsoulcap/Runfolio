@@ -16,6 +16,7 @@ import {
   CopyPlanItemSchema,
   MovePlanItemSchema,
   PlanDraftSchema,
+  PlanItemRevisionSchema,
   StrengthPlanDraftSchema,
   type DerivedPlanStatus,
 } from "@/lib/domain/plan";
@@ -566,6 +567,46 @@ export async function movePlanItem(userId: string, raw: unknown) {
     };
   });
 }
+
+// Keep the plan and its prescriptions for Undo; actual logs are never deleted.
+async function setPlanItemDeleted(userId: string, raw: unknown, restore: boolean) {
+  const parsed = PlanItemRevisionSchema.safeParse(raw);
+  if (!parsed.success) throw validation(parsed.error.issues[0]?.message ?? "invalid plan item");
+  const input = parsed.data;
+  return db.transaction(async tx => {
+    const [found] = await tx.select({ weekId: weeklyPlans.id, dayId: dailyPlans.id }).from(planItems)
+      .innerJoin(dailyPlans, eq(planItems.dailyPlanId, dailyPlans.id))
+      .innerJoin(weeklyPlans, eq(dailyPlans.weeklyPlanId, weeklyPlans.id))
+      .where(and(eq(planItems.id, input.planItemId), eq(weeklyPlans.userId, userId))).limit(1);
+    if (!found) throw new ServiceError("NOT_FOUND", "plan item not found");
+    const [week] = await tx.select().from(weeklyPlans).where(eq(weeklyPlans.id, found.weekId)).for("update").limit(1);
+    if (!week || week.revision !== input.expectedRevision) throw new ServiceError("CONFLICT", "week changed; refetch and retry");
+    const [item] = await tx.select().from(planItems).where(eq(planItems.id, input.planItemId)).for("update").limit(1);
+    if (!item || item.dailyPlanId !== found.dayId) throw new ServiceError("CONFLICT", "week changed; refetch and retry");
+    if (restore ? !item.deletedAt : !!item.deletedAt) return { revision: week.revision };
+    const [log] = await tx.select({ id: workoutLogs.id }).from(workoutLogs)
+      .where(and(eq(workoutLogs.planItemId, item.id), isNull(workoutLogs.deletedAt))).limit(1);
+    if (log) throw new ServiceError("CONFLICT", "plan has an active log; cannot delete or restore");
+    const siblings = await tx.select({ id: planItems.id }).from(planItems)
+      .where(and(eq(planItems.dailyPlanId, found.dayId), isNull(planItems.deletedAt))).orderBy(asc(planItems.sortOrder));
+    const originalIndex = siblings.findIndex(row => row.id === item.id);
+    const ids = siblings.filter(row => row.id !== item.id).map(row => row.id);
+    const itemIndex = restore ? Math.min(item.sortOrder, ids.length) : originalIndex;
+    if (restore) {
+      const [day] = await tx.select({ isRestDay: dailyPlans.isRestDay }).from(dailyPlans).where(eq(dailyPlans.id, found.dayId)).limit(1);
+      if (!day || day.isRestDay) throw new ServiceError("CONFLICT", "cannot restore a session to a rest day");
+      ids.splice(itemIndex, 0, item.id);
+    }
+    for (const [sortOrder, id] of ids.entries()) {
+      await tx.update(planItems).set({ sortOrder, updatedAt: new Date() }).where(eq(planItems.id, id));
+    }
+    await tx.update(planItems).set({ deletedAt: restore ? null : new Date(), sortOrder: itemIndex, updatedAt: new Date() }).where(eq(planItems.id, item.id));
+    return { revision: await bumpRevision(tx, week.id, input.expectedRevision) };
+  });
+}
+
+export function deletePlanItem(userId: string, raw: unknown) { return setPlanItemDeleted(userId, raw, false); }
+export function undeletePlanItem(userId: string, raw: unknown) { return setPlanItemDeleted(userId, raw, true); }
 
 export async function getWeekRevision(userId: string, monday: string) {
   if (!isMonday(monday)) {

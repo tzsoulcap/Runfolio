@@ -38,6 +38,7 @@ function SortableItem({
   today,
   strengthMasters,
   onMove,
+  onDelete,
 }: {
   item: PlanItemDTO;
   day: DayDTO;
@@ -46,6 +47,7 @@ function SortableItem({
   today: string;
   strengthMasters: ExerciseOption[];
   onMove: (itemId: string, targetDate: string, targetIndex?: number) => void;
+  onDelete: (itemId: string) => void;
 }) {
   const locked = item.log !== null;
   const {
@@ -90,6 +92,7 @@ function SortableItem({
         onMove={(targetDate, targetIndex) =>
           onMove(item.id, targetDate, targetIndex)
         }
+        onDelete={() => onDelete(item.id)}
       />
     </li>
   );
@@ -103,6 +106,7 @@ export function DayColumn({
   revision,
   today,
   onMove,
+  onDelete,
 }: {
   day: DayDTO;
   masters: MasterOption[];
@@ -111,6 +115,7 @@ export function DayColumn({
   revision: number;
   today: string;
   onMove: (itemId: string, targetDate: string, targetIndex?: number) => void;
+  onDelete: (itemId: string) => void;
 }) {
   const [adding, setAdding] = useState<"RUNNING" | "STRENGTH" | null>(null);
   useEffect(() => {
@@ -204,6 +209,7 @@ export function DayColumn({
                   today={today}
                   strengthMasters={strengthMasters}
                   onMove={onMove}
+                  onDelete={onDelete}
                 />
               ))}
             </ol>

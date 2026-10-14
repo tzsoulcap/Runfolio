@@ -4,6 +4,8 @@ import type {
   IntensityTarget,
   MuscleGroup,
   RunningTarget,
+  RunningStep,
+  RunningRepeat,
   StrengthPrescription,
 } from "@/lib/domain/master";
 import type { DerivedPlanStatus } from "@/lib/domain/plan";
@@ -151,19 +153,34 @@ export function formatTargetTh(
 ): string {
   if (!target) return "–";
   if (target.kind === "DISTANCE") return formatDistanceM(target.distanceM);
-  if (target.kind === "DURATION")
-    return `${trimNum(target.durationSec / 60)} นาที`;
-  return "Structured";
+  if (target.kind === "DURATION") {
+    const minutes = Math.floor(target.durationSec / 60);
+    const seconds = target.durationSec % 60;
+    return [minutes > 0 ? `${minutes} นาที` : null, seconds > 0 ? `${trimNum(seconds)} วินาที` : null].filter(Boolean).join(" ");
+  }
+  return target.steps.map(formatRunningBlockTh).join(" → ");
 }
 
-// Full one-line target: structured main plus its detail part (§6 plan ref).
+export const RUNNING_PHASE_TH: Record<RunningStep["phase"], string> = {
+  WARMUP: "วอร์มอัป", WORK: "ช่วงหลัก", RECOVERY: "พัก", COOLDOWN: "คูลดาวน์", STRIDES: "Strides",
+};
+
+export function formatRunningStepTh(step: RunningStep): string {
+  const target = step.target.kind === "OPEN" ? step.target.instruction : formatTargetTh(step.target);
+  return [`${RUNNING_PHASE_TH[step.phase]} ${target}`, formatIntensityTh(step.intensity), step.note].filter(Boolean).join(" · ");
+}
+
+export function formatRunningBlockTh(block: RunningStep | RunningRepeat): string {
+  if (block.kind === "STEP") return formatRunningStepTh(block);
+  return `${block.repeatCount} รอบ (${block.steps.map(formatRunningStepTh).join(" → ")})${block.includeFinalRecovery ? "" : " · รอบสุดท้ายไม่พัก"}`;
+}
+
+// Full plan reference, including every phase, intensity, note and repeat.
 export function formatTargetFullTh(
   target: RunningTarget | null | undefined,
 ): string | null {
   if (!target) return null;
-  const main = formatStructuredMain(target) ?? formatTargetTh(target);
-  const detail = formatStructuredDetail(target);
-  return detail ? `${main} · ${detail}` : main;
+  return formatTargetTh(target);
 }
 
 // Parses plan-form pace input: "m:ss" or plain seconds. Null when invalid.
@@ -192,14 +209,16 @@ export function greetingTh(hour: number): string {
   return "สวัสดีตอนกลางคืน";
 }
 
-// Interval-style hero number: "5 × 800 m" from the first repeat block.
-// Null when there is no repeat to headline (caller falls back).
+// Compact headline for the work blocks; full step descriptions live below.
 export function formatStructuredMain(
   target: RunningTarget | null | undefined,
 ): string | null {
   if (target?.kind !== "STRUCTURED") return null;
   const repeat = target.steps.find((s) => s.kind === "REPEAT");
-  if (!repeat || repeat.kind !== "REPEAT") return null;
+  if (!repeat || repeat.kind !== "REPEAT") {
+    const work = target.steps.filter((step): step is RunningStep => step.kind === "STEP" && step.phase === "WORK");
+    return work.length ? work.map(step => step.target.kind === "OPEN" ? step.target.instruction : formatTargetTh(step.target)).join(" + ") : null;
+  }
   const work =
     repeat.steps.find(
       (s) => s.phase === "WORK" && s.target.kind === "DISTANCE",
@@ -222,6 +241,13 @@ export function formatStructuredDetail(
   target: RunningTarget | null | undefined,
 ): string | null {
   if (target?.kind !== "STRUCTURED") return null;
+  if (target.steps.every(step => step.kind === "STEP")) {
+    const work = target.steps.filter(step => step.phase === "WORK")
+      .map(step => [formatIntensityTh(step.intensity), step.note].filter(Boolean).join(" · "));
+    const other = target.steps.filter(step => step.phase !== "WORK").map(formatRunningStepTh);
+    const bits = [...work, ...other].filter(Boolean);
+    return bits.length ? bits.join(" · ") : null;
+  }
   const recoveryBits: string[] = [];
   for (const block of target.steps) {
     const steps = block.kind === "REPEAT" ? block.steps : [block];

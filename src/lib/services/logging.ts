@@ -91,17 +91,16 @@ async function lockOwnedPlan(
   planItemId: string,
   activityType: "RUNNING" | "STRENGTH",
 ): Promise<LockedPlan> {
-  const [item] = await tx
+  const [found] = await tx
     .select()
     .from(planItems)
     .where(and(eq(planItems.id, planItemId), isNull(planItems.deletedAt)))
-    .limit(1)
-    .for("update");
-  if (!item) throw new ServiceError("NOT_FOUND", "plan not found");
+    .limit(1);
+  if (!found) throw new ServiceError("NOT_FOUND", "plan not found");
   const [day] = await tx
     .select()
     .from(dailyPlans)
-    .where(eq(dailyPlans.id, item.dailyPlanId))
+    .where(eq(dailyPlans.id, found.dailyPlanId))
     .limit(1);
   const [week] = day
     ? await tx
@@ -114,6 +113,12 @@ async function lockOwnedPlan(
   if (!day || !week || week.userId !== userId) {
     throw new ServiceError("NOT_FOUND", "plan not found");
   }
+  // Match move/delete lock order: week before item.
+  const [item] = await tx.select().from(planItems)
+    .where(and(eq(planItems.id, planItemId), isNull(planItems.deletedAt)))
+    .for("update").limit(1);
+  if (!item) throw new ServiceError("NOT_FOUND", "plan not found");
+  if (item.dailyPlanId !== day.id) throw new ServiceError("CONFLICT", "week changed; refetch and retry");
   if (item.activityType !== activityType) {
     throw new ServiceError(
       "CONFLICT",
@@ -527,6 +532,7 @@ export async function undeleteWorkoutLog(
     }
     // Restoring must not resurrect a clash: the plan may have been re-logged.
     if (log.planItemId) {
+      await lockOwnedPlan(tx, userId, log.planItemId, log.activityType === "STRENGTH" ? "STRENGTH" : "RUNNING");
       const [clash] = await tx
         .select({ id: workoutLogs.id })
         .from(workoutLogs)
